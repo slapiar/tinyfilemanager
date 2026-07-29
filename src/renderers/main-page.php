@@ -640,7 +640,7 @@
         }
         $footerBuildLabel = 'tinyfilemanager DREMONT v' . $footerReleaseVersion;
         $footerCopyrightYear = (int) date('Y');
-        $footerCopyrightLabel = '©' . $footerCopyrightYear . ' slapiar';
+        $footerCopyrightLabel = '©' . $footerCopyrightYear . ' PIAR@Team';
         if ($footerShowUserBadges && empty($footerOnlineUsers)) {
             $footerOnlineUsers = array($footerLoggedUser);
         }

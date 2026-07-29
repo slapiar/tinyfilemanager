@@ -1,4 +1,5 @@
-(function () {
+// Patch: Načítanie vlastných CSS štýlov
+import './asset/css/custom.css';
   function readJsonConfig(id) {
     var el = document.getElementById(id);
     if (!el) {
