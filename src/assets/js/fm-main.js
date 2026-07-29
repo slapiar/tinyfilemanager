@@ -1340,4 +1340,4 @@ import './asset/css/custom.css';
     } else {
         addUltraBtn();
     }
-})();;
+})();
