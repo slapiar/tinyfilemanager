@@ -1314,56 +1314,30 @@ import './asset/css/custom.css';
   window.search_template = searchTemplate;
   window.fm_search = fmSearch;
   window.confirmDailog = confirmDialog;
+// === ULTRA COMPACT DENSITY (jednoduchá verzia) ===
+(function() {
+    function addUltraBtn() {
+        const toolbar = document.querySelector('.fm-listing-toolbar');
+        if (!toolbar) return;
+        if (document.getElementById('ultra-density-btn')) return;
 
-  // ====================== ULTRA COMPACT DENSITY TOGGLE ======================
-function addUltraDensityToggle() {
-    const toolbar = document.querySelector('.fm-listing-toolbar, .fm-toolbar, #listing-toolbar');
-    if (!toolbar) return;
+        const btn = document.createElement('button');
+        btn.id = 'ultra-density-btn';
+        btn.className = 'btn btn-sm btn-outline-primary';
+        btn.style.marginLeft = '8px';
+        btn.innerHTML = '🗜 Ultra';
 
-    if (document.getElementById('btn-density-ultra')) return;
+        btn.onclick = () => {
+            document.body.classList.toggle('fm-density-ultra-compact');
+            btn.textContent = document.body.classList.contains('fm-density-ultra-compact') ? '↔ Normal' : '🗜 Ultra';
+        };
 
-    const btn = document.createElement('button');
-    btn.id = 'btn-density-ultra';
-    btn.className = 'btn btn-sm btn-outline-secondary ms-2 d-flex align-items-center gap-1';
-    btn.innerHTML = '<i class="fa fa-compress-alt"></i><span>Ultra</span>';
-    btn.title = 'Ultra compact riadky (–30 % výška)';
-
-    btn.addEventListener('click', function() {
-        const body = document.body;
-        
-        if (body.classList.contains('fm-density-ultra-compact')) {
-            // Vypnúť ultra
-            body.classList.remove('fm-density-ultra-compact');
-            btn.classList.remove('active', 'btn-secondary');
-            btn.classList.add('btn-outline-secondary');
-            btn.innerHTML = '<i class="fa fa-compress-alt"></i><span>Ultra</span>';
-            localStorage.setItem('fm_density_mode', 'normal');
-        } else {
-            // Zapnúť ultra
-            body.classList.add('fm-density-ultra-compact');
-            body.classList.remove('fm-density-compact'); // vypneme aj štandardný compact
-            btn.classList.add('active', 'btn-secondary');
-            btn.classList.remove('btn-outline-secondary');
-            btn.innerHTML = '<i class="fa fa-expand-alt"></i><span>Normal</span>';
-            localStorage.setItem('fm_density_mode', 'ultra');
-        }
-    });
-
-    toolbar.appendChild(btn);
-
-    // Obnov stav z localStorage
-    if (localStorage.getItem('fm_density_mode') === 'ultra') {
-        document.body.classList.add('fm-density-ultra-compact');
-        btn.classList.add('active', 'btn-secondary');
-        btn.classList.remove('btn-outline-secondary');
-        btn.innerHTML = '<i class="fa fa-expand-alt"></i><span>Normal</span>';
+        toolbar.appendChild(btn);
     }
-}
 
-// Spustiť po načítaní stránky
-if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', addUltraDensityToggle);
-} else {
-    addUltraDensityToggle();
-}
-})();
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', addUltraBtn);
+    } else {
+        addUltraBtn();
+    }
+})();;
