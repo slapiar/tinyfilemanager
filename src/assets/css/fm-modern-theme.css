@@ -1018,15 +1018,15 @@ html[data-bs-theme="dark"] body.fm-density-compact #main-table.fm-modern-table.t
     transition: none !important;
   }
 }
-/* === DENSITY TOGGLE ENHANCEMENT === */
-body.fm-density-ultra-compact #main-table.fm-modern-table thead th,
-body.fm-density-ultra-compact #main-table.fm-modern-table tbody td {
-    padding: 0.08rem 0.32rem !important;
-    line-height: 0.95 !important;
-    font-size: 0.86rem;
+/* Ultra-compact density mode */
+body.fm-density-ultra-compact #main-table th,
+body.fm-density-ultra-compact #main-table td {
+    padding: 0.1rem 0.25rem !important;
+    font-size: 0.85rem !important;
+    line-height: 1.0 !important;
 }
 
 body.fm-density-ultra-compact .fm-owner-badge {
-    padding: 0.04rem 0.18rem !important;
-    font-size: 0.68rem;
+    padding: 0.05rem 0.2rem !important;
+    font-size: 0.7rem !important;
 }
