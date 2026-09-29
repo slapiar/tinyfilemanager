@@ -1,6 +1,6 @@
 <?php
 //Default Configuration
-$CONFIG = '{"lang":"sk","error_reporting":false,"show_hidden":false,"hide_Cols":false,"theme":"light"}';
+$CONFIG = '{"lang":"sk","error_reporting":false,"show_hidden":false,"hide_Cols":false,"theme":"dark","list_density":"compact"}';
 
 /**
  * DREMONT ~ správca súborov 
@@ -296,7 +296,7 @@ $report_errors = isset($cfg->data['error_reporting']) ? $cfg->data['error_report
 $hide_Cols = isset($cfg->data['hide_Cols']) ? $cfg->data['hide_Cols'] : true;
 
 // Theme
-$theme = isset($cfg->data['theme']) ? $cfg->data['theme'] : 'light';
+$theme = isset($cfg->data['theme']) ? $cfg->data['theme'] : 'dark';
 
 // List density mode for file table rows.
 $list_density = isset($cfg->data['list_density']) ? strtolower((string) $cfg->data['list_density']) : 'compact';
@@ -4877,10 +4877,6 @@ function fm_chat_get_visible_peers($current_user, array $auth_users, array $dire
     }
 
     $current_scopes = fm_chat_resolve_user_scope_dirs($current_user, $directories_users, $root_path, $home_root_rel);
-    if (empty($current_scopes)) {
-        return array();
-    }
-
     $current_is_manager = in_array($current_user, $manager_users, true);
     $current_owner = fm_admin_get_user_manager_owner($current_user, $user_manager_owners, $manager_users);
     $manager_contact_grants = $current_is_manager ? array() : fm_chat_get_manager_contact_grants($current_user, $manager_users);
@@ -4889,6 +4885,17 @@ function fm_chat_get_visible_peers($current_user, array $auth_users, array $dire
     foreach ($auth_users as $peer => $unused_hash) {
         $peer = (string) $peer;
         if ($peer === '' || $peer === $current_user) {
+            continue;
+        }
+
+        // Reporting relationships are independent of assigned filesystem paths.
+        // Include the direct manager and allow that manager to reply to their users.
+        $peer_is_manager = in_array($peer, $manager_users, true);
+        $peer_owner = fm_admin_get_user_manager_owner($peer, $user_manager_owners, $manager_users);
+        if ((!$current_is_manager && $peer_is_manager && $peer === $current_owner)
+            || ($current_is_manager && $peer_owner === $current_user)
+            || in_array($peer, $manager_contact_grants, true)) {
+            $peers[] = $peer;
             continue;
         }
 
@@ -4907,7 +4914,7 @@ function fm_chat_get_visible_peers($current_user, array $auth_users, array $dire
             $allowed = $same_scope;
         } else {
             if ($peer_is_manager) {
-                // Direct superior manager is visible only with exact scope match.
+                // Legacy same-scope rule; direct assignments are handled above.
                 if ($peer === $current_owner && $same_scope) {
                     $allowed = true;
                 }

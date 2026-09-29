@@ -402,6 +402,7 @@ class TFM_AjaxActionHandler {
                 'hide_Cols' => isset($cfg->data['hide_Cols']) ? (bool) $cfg->data['hide_Cols'] : (bool) $hide_Cols,
                 'theme' => isset($cfg->data['theme']) ? $cfg->data['theme'] : $theme,
                 'list_density' => isset($cfg->data['list_density']) ? (string) $cfg->data['list_density'] : $listDensity,
+                'display_defaults_version' => isset($cfg->data['display_defaults_version']) ? (int) $cfg->data['display_defaults_version'] : 0,
                 'fallback_logging' => isset($cfg->data['fallback_logging']) ? (bool) $cfg->data['fallback_logging'] : $fallbackLoggingEnabled,
             );
 

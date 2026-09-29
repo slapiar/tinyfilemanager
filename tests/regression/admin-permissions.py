@@ -36,11 +36,13 @@ $manager_users = array('manager');
 $readonly_users = array('admin', 'reader');
 $upload_only_users = array('admin');
 $bulk_actions_disabled_users = array('admin');
-$directories_users = array('admin'=>'missing-directory', 'manager'=>'manager', 'reader'=>'manager');
+$directories_users = array('admin'=>'missing-directory', 'manager'=>'manager', 'reader'=>'other');
 $user_manager_owners = array('reader'=>'manager', 'manager'=>'admin');
 $global_readonly = true;
 $use_auth = true;
 ''')
+    (root / '.fm_usercfg').mkdir()
+    (root / '.fm_usercfg' / (hashlib.md5(b'admin').hexdigest() + '.json')).write_text(json.dumps({'theme': 'light', 'list_density': 'normal', 'lang': 'sk'}))
     # This fixture exists only in the temporary copy served on loopback.
     (root / 'fixture.php').write_text('''<?php
 session_name('filemanager'); session_start();
@@ -93,6 +95,18 @@ echo 'ready';
             request(user, fixture=True)
         status, body = request('admin', 'p=other')
         assert status == 200 and 'evidence.txt' in body, body[-1200:]
+        assert 'data-bs-theme="dark"' in body and 'fm-density-compact' in body
+        status, body = request('reader', 'p=other')
+        assert 'value="manager">manager (manažér)</option>' in body
+        assert 'data-bs-theme="dark"' in body and 'fm-density-compact' in body
+        status, body = request('reader', 'p=other&chat_action=fetch&with=manager')
+        assert status == 200 and json.loads(body)['ok'], body
+        status, body = request('manager', 'p=manager&chat_action=fetch&with=reader')
+        assert status == 200 and json.loads(body)['ok'], body
+        # A later explicit display preference is not forced back on each request.
+        status, body = request('admin', '', {'ajax': '1', 'type': 'settings', 'token': 'test-csrf-token', 'js-language': 'sk', 'js-theme-3': 'light', 'js-list-density': 'normal'})
+        status, body = request('admin', 'p=other')
+        assert 'data-bs-theme="light"' in body and 'fm-density-normal' in body, body[:300]
         status, body = request('admin', 'admin_users_modal=edit&user=reader')
         assert 'name="original_username"' in body and 'minlength="2"' in body, body[:300]
         username_input = re.search(r'<input[^>]+id="admin-username"[^>]*>', body).group()
@@ -104,6 +118,7 @@ echo 'ready';
         request('login-test', fixture=True)
         status, body = request('login-test', '', dict(token='test-csrf-token', fm_usr='xy', fm_pwd='test-pass'))
         assert 'name="fm_usr"' not in body and 'manager' in body, body[-500:]
+        assert 'data-bs-theme="dark"' in body and 'fm-density-compact' in body
         status, body = request('admin', 'p=other', dict(token='test-csrf-token', newfilename='admin-write', newfile='folder'))
         assert (root / 'data/other/admin-write').is_dir(), body[-500:]
         (root / '.fm_usercfg').mkdir(exist_ok=True)
@@ -147,7 +162,7 @@ echo 'ready';
         assert status == 200 and json.loads(body)['ok'], body
         status, body = request('admin', 'p=other')
         assert 'evidence.txt' in body, body[:500]
-        print('PASS: admin visibility, editable name, 2-character names, rename/password/roles, collision rejection, manager boundary, cross-scope folder refresh, admin self-rename/session')
+        print('PASS: admin visibility, editable name, 2-character names, rename/password/roles, collision rejection, manager boundary, cross-scope folder refresh, admin self-rename/session, dark/compact profile migration and personal overrides, manager chat across different directories')
     except Exception:
         log.flush()
         print((root / 'server.log').read_text()[-4500:])

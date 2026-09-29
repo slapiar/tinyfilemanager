@@ -701,7 +701,7 @@
                                 <select class="form-select form-select-sm" data-chat-peer-select aria-label="Vyber používateľa pre správu">
                                     <option value="">Komu odkaz?</option>
                                     <?php foreach ($footerChatPeers as $chatPeer): ?>
-                                        <option value="<?php echo fm_enc($chatPeer); ?>"><?php echo fm_enc($chatPeer); ?></option>
+                                        <option value="<?php echo fm_enc($chatPeer); ?>"><?php echo fm_enc($chatPeer); ?><?php echo in_array($chatPeer, isset($manager_users) && is_array($manager_users) ? $manager_users : array(), true) ? ' (manažér)' : ''; ?></option>
                                     <?php endforeach; ?>
                                 </select>
                                 <button type="button" class="btn btn-outline-primary" data-chat-open-peer>Napísať</button>
@@ -752,7 +752,7 @@
                                 <select class="form-select form-select-sm" data-chat-peer-select aria-label="Vyber používateľa pre správu">
                                     <option value="">Komu odkaz?</option>
                                     <?php foreach ($footerChatPeers as $chatPeer): ?>
-                                        <option value="<?php echo fm_enc($chatPeer); ?>"><?php echo fm_enc($chatPeer); ?></option>
+                                        <option value="<?php echo fm_enc($chatPeer); ?>"><?php echo fm_enc($chatPeer); ?><?php echo in_array($chatPeer, isset($manager_users) && is_array($manager_users) ? $manager_users : array(), true) ? ' (manažér)' : ''; ?></option>
                                     <?php endforeach; ?>
                                 </select>
                                 <button type="button" class="btn btn-outline-primary" data-chat-open-peer>Napísať</button>
