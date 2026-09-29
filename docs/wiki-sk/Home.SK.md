@@ -1,24 +1,9 @@
-# Vitajte vo Wiki TinyFileManager
+# Dokumentácia nášho správcu súborov
 
-## Konfigurácia
+Táto pomoc opisuje fork `slapiar/tinyfilemanager`, stav vydania 3.3.11 z 29. 9. 2026. Funkcie a požiadavky sa od pôvodného projektu líšia.
 
-- [Get Started](?help_doc=wiki-get-started)
-- [Security and User Management](?help_doc=wiki-security-users)
-- [Exclude Files & Folders](?help_doc=wiki-exclude)
-- [Restriction by file type](?help_doc=wiki-restriction-file-type)
-- [IP Blacklist and Whitelist](?help_doc=wiki-ip-rules)
-- [Embedding](?help_doc=wiki-embedding)
-- [Config Flags](?help_doc=wiki-config-flags)
+Začnite [používateľskou príručkou](?help_doc=user-guide). Pri probléme otvorte [časté otázky](?help_doc=wiki-faq). Správcom sú určené [správa používateľov](?help_doc=wiki-security-users), [konfigurácia](?help_doc=wiki-config-flags) a [nasadenie](?help_doc=wiki-get-started).
 
-## FAQ
+[Prehľad rozšírení](?help_doc=wiki-our-extensions) rozlišuje dostupné funkcie a rozpracovaný AI Browser. [Vlastníctvo a chat](?help_doc=ownership-chat) vysvetľuje odznaky aj uchovávanie správ.
 
-- [FAQ](?help_doc=wiki-faq)
-
-## O projekte
-
-- [Authors and Contributors](?help_doc=wiki-authors)
-
-## Poznámka pre tento fork
-
-Pre bežných používateľov odporúčame čítať lokálnu dokumentáciu v `docs/USER_GUIDE_SK.md`.
-Technické témy a témy nasadenia sú v koreňových dokumentoch repozitára (`README.md`, `DEPLOYMENT.md`, `SECURITY.md`).
+Adresár `docs/archive/refactor-history` obsahuje historické vývojové záznamy. Nie je aktuálnym používateľským návodom ani dôkazom, že dnešná verzia prešla všetkými historicky uvádzanými testami.

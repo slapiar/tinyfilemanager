@@ -25,6 +25,7 @@ with tempfile.TemporaryDirectory(prefix='tfm-admin-test-') as temporary:
         if source.name != 'config.php':
             shutil.copy(source, root / source.name)
     shutil.copytree(repo / 'src', root / 'src')
+    shutil.copytree(repo / 'docs', root / 'docs')
     shutil.copy(repo / 'translation.json', root / 'translation.json')
     (root / 'data/manager').mkdir(parents=True)
     (root / 'data/other').mkdir()
@@ -120,6 +121,12 @@ echo 'ready';
         status, body = request('reader', 'p=other')
         assert 'value="manager">manager (manažér)</option>' in body
         assert 'data-bs-theme="dark"' in body and 'fm-density-compact' in body
+        # Help routes render the maintained local documents, including ownership/chat.
+        for key, heading in [('user-guide', 'Používateľská príručka'), ('ownership-chat', 'Vlastníctvo súborov a chat'), ('wiki-index', 'Slovenská dokumentácia TinyFileManager')]:
+            status, body = request('reader', 'p=other&help_doc=' + key)
+            assert status == 200 and heading in body and 'Dokument sa nepodarilo načítať' not in body
+        status, body = request('reader', 'p=other&help=2')
+        assert 'help_doc=ownership-chat' in body and 'github.com/slapiar/tinyfilemanager/issues' in body
         # Admin bulk delete works despite configured role restrictions, including nested folders.
         (root / 'data/other/bulk-folder').mkdir()
         (root / 'data/other/bulk-folder/child.txt').write_text('delete fixture')

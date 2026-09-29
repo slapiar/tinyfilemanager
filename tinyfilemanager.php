@@ -2972,9 +2972,10 @@ if (isset($_GET['help'])) {
                         <div class="card">
                             <ul class="list-group list-group-flush">
                                 <li class="list-group-item"><a href="<?php echo FM_SELF_URL; ?>?p=<?php echo $help_path_param; ?>&help_doc=user-guide"><i class="fa fa-book"></i> Používateľská príručka (lokálna)</a></li>
-                                <li class="list-group-item"><a href="<?php echo FM_SELF_URL; ?>?p=<?php echo $help_path_param; ?>&help_doc=wiki-index"><i class="fa fa-question-circle"></i> Online dokumentácia (Wiki)</a></li>
+                                <li class="list-group-item"><a href="<?php echo FM_SELF_URL; ?>?p=<?php echo $help_path_param; ?>&help_doc=ownership-chat"><i class="fa fa-comments"></i> Vlastníctvo súborov a chat</a></li>
+                                <li class="list-group-item"><a href="<?php echo FM_SELF_URL; ?>?p=<?php echo $help_path_param; ?>&help_doc=wiki-index"><i class="fa fa-question-circle"></i> Slovenská dokumentácia (Wiki)</a></li>
                                 <li class="list-group-item"><a href="<?php echo FM_SELF_URL; ?>?p=<?php echo $help_path_param; ?>&help_doc=security"><i class="fa fa-shield"></i> Bezpečnostné zásady</a></li>
-                                <li class="list-group-item"><a href="https://github.com/prasathmani/tinyfilemanager/issues" target="_blank"><i class="fa fa-bug"></i> <?php echo lng('Report Issue') ?></a></li>
+                                <li class="list-group-item"><a href="https://github.com/slapiar/tinyfilemanager/issues" target="_blank"><i class="fa fa-bug"></i> <?php echo lng('Report Issue') ?></a></li>
                                 <?php if (!FM_READONLY) { ?>
                                     <li class="list-group-item"><a href="javascript:show_new_pwd();"><i class="fa fa-lock"></i> <?php echo lng('Generate new password hash') ?></a></li>
                                 <?php } ?>
@@ -3033,12 +3034,16 @@ if (isset($_GET['help_doc'])) {
             'title' => 'Používateľská príručka (lokálna)',
             'path' => __DIR__ . '/docs/USER_GUIDE_SK.md',
         ),
+        'ownership-chat' => array(
+            'title' => 'Vlastníctvo súborov a chat',
+            'path' => __DIR__ . '/docs/APP_OWNERSHIP_CHAT_NOTES_SK.md',
+        ),
         'security' => array(
             'title' => 'Bezpečnostné zásady',
             'path' => __DIR__ . '/SECURITY.md',
         ),
         'wiki-index' => array(
-            'title' => 'Online dokumentácia (Wiki SK)',
+            'title' => 'Slovenská dokumentácia (Wiki SK)',
             'path' => __DIR__ . '/docs/wiki-sk/INDEX_SK.md',
         ),
         'wiki-home' => array(
