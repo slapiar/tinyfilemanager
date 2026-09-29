@@ -120,15 +120,20 @@ echo 'ready';
         status, body = request('reader', 'p=other')
         assert 'value="manager">manager (manažér)</option>' in body
         assert 'data-bs-theme="dark"' in body and 'fm-density-compact' in body
-        # AI starts in the assigned home, with the same scope at execution time.
-        status, body = request('reader', 'p=other&assistant_browser=1')
-        assert 'name="assistant_path" value="other"' in body, body[-600:]
-        assert 'value="other/evidence.txt"' in body
-        assert not (root / 'Joyee').exists()
-        status, body = request('reader', 'p=other&assistant_browser=1&ajp=manager')
-        assert 'nie je pridelený' in body
+        # AI Browser is visible and accessible only to the administrator during development.
+        for user, directory in [('reader', 'other'), ('manager', 'manager')]:
+            status, body = request(user, 'p=' + directory)
+            assert 'assistant_browser=1' not in body
+            for payload in (None, {'token': 'test-csrf-token', 'assistant_run': '1', 'assistant_message': 'Inspect', 'assistant_files[]': directory + '/evidence.txt'}):
+                status, body = request(user, 'p=' + directory + '&assistant_browser=1', payload)
+                assert status == 403 and 'iba administrátorovi' in body
+            assert not provider_requests
+        status, body = request('admin', 'p=other')
+        assert 'assistant_browser=1' in body
+        status, body = request('admin', 'p=other&assistant_browser=1')
+        assert status == 200 and 'assistant-browser-form' in body
         ai = {'token': 'test-csrf-token', 'assistant_run': '1', 'assistant_message': 'Inspect', 'assistant_files[]': 'other/evidence.txt'}
-        status, body = request('reader', 'p=other&assistant_browser=1', ai)
+        status, body = request('admin', 'p=other&assistant_browser=1', ai)
         assert 'Checked' in body and len(provider_requests) == 1, body[-800:]
         # Provider diagnostics must distinguish quota from rate limits and never echo secrets.
         for provider_status, provider_error, expected in [
@@ -140,7 +145,7 @@ echo 'ready';
             (503, {}, 'dočasnú serverovú chybu'),
         ]:
             provider_error['message'] = 'SECRET-KEY-DO-NOT-DISPLAY'
-            status, body = request('reader', 'p=other&assistant_browser=1', ai)
+            status, body = request('admin', 'p=other&assistant_browser=1', ai)
             assert expected in body and ('HTTP ' + str(provider_status)) in body
             assert 'SECRET-KEY-DO-NOT-DISPLAY' not in body
         provider_status = 200
@@ -157,12 +162,8 @@ echo 'ready';
         assert context_text.count('END-OF-FILE') == 9 and 'x' * 200010 in context_text
         provider_requests.clear()
         provider_requests.append({})
-        ai['assistant_files[]'] = 'manager/secret.txt'
-        (root / 'data/manager/secret.txt').write_text('private')
-        status, body = request('reader', 'p=other&assistant_browser=1', ai)
-        assert len(provider_requests) == 1
         ai['token'] = 'wrong'
-        status, body = request('reader', 'p=other&assistant_browser=1', ai)
+        status, body = request('admin', 'p=other&assistant_browser=1', ai)
         assert status == 403
         ai = {'token': 'test-csrf-token', 'assistant_apply': '1', 'assistant_require_confirmation': '0', 'assistant_plan_json': json.dumps({'operations': [{'action':'write','path':'other/blocked.txt','content':'blocked'}]})}
         request('reader', 'p=other&assistant_browser=1', ai)
@@ -239,21 +240,9 @@ echo 'ready';
         assert chat.execute("SELECT sender FROM fm_chat_messages WHERE message='Keep this conversation'").fetchone()[0] == 'mg'
         # Two separate user scopes: a manager mutation must invalidate admin's tree.
         request('mg', 'enable_writes=1', fixture=True)
-        # Reject a mixed AI plan before its first write; foreign and symlink targets stay untouched.
-        operations = [{'action':'write','path':'manager/first.txt','content':'ok'}, {'action':'write','path':'other/foreign.txt','content':'no'}]
-        ai = {'token':'test-csrf-token','assistant_apply':'1','assistant_require_confirmation':'0','assistant_plan_json':json.dumps({'operations':operations})}
-        request('mg','p=manager&assistant_browser=1',ai)
-        assert not (root / 'data/manager/first.txt').exists()
-        assert not (root / 'data/other/foreign.txt').exists()
-        (root / 'data/manager/link').symlink_to(root / 'data/other', target_is_directory=True)
-        operations[1]['path'] = 'manager/link/foreign.txt'
-        ai['assistant_plan_json'] = json.dumps({'operations':operations})
-        request('mg','p=manager&assistant_browser=1',ai)
-        assert not (root / 'data/manager/first.txt').exists()
-        (root / 'data/manager/link').unlink()
-        ai['assistant_plan_json'] = json.dumps({'operations':operations[:1]})
-        request('mg','p=manager&assistant_browser=1',ai)
-        assert (root / 'data/manager/first.txt').read_text() == 'ok'
+        ai = {'token':'test-csrf-token','assistant_apply':'1','assistant_require_confirmation':'0','assistant_plan_json':json.dumps({'operations':[{'action':'write','path':'manager/first.txt','content':'blocked'}]})}
+        status, body = request('mg','p=manager&assistant_browser=1',ai)
+        assert status == 403 and not (root / 'data/manager/first.txt').exists()
         status, body = request('admin', 'p=manager')
         assert 'new-shared-folder' not in body
         status, body = request('mg', 'p=manager', dict(token='test-csrf-token',newfilename='new-shared-folder',newfile='folder'))

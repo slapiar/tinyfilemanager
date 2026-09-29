@@ -2227,6 +2227,10 @@ if (isset($_GET['assistant_browser'])) {
         http_response_code(403);
         exit('Prihlásenie je povinné.');
     }
+    if (!FM_IS_ADMIN) {
+        http_response_code(403);
+        exit('AI Browser je zatiaľ dostupný iba administrátorovi.');
+    }
     if ($_SERVER['REQUEST_METHOD'] === 'POST' && !verifyToken((string) ($_POST['token'] ?? ''))) {
         http_response_code(403);
         exit('Neplatný token. Obnovte stránku.');
