@@ -1359,6 +1359,7 @@
 
         const btn = document.createElement('button');
         btn.id = 'ultra-density-btn';
+        btn.type = 'button';
         btn.className = 'btn btn-sm btn-outline-primary';
         btn.style.marginLeft = '8px';
         btn.innerHTML = '🗜 Ultra';
