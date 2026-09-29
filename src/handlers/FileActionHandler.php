@@ -198,12 +198,24 @@ class TFM_FileActionHandler {
         $path = $this->basePath();
         $errors = array();
         $deleted = 0;
+        $missing = array();
         $files = isset($post['file']) && is_array($post['file']) ? array_values(array_unique(array_filter($post['file'], 'is_string'))) : array();
 
         if (is_array($files) && count($files)) {
             foreach ($files as $f) {
                 if ($f != '') {
                     $new_path = $path . '/' . $f;
+                    clearstatcache(true, $new_path);
+                    if (!file_exists($new_path) && !is_link($new_path)) {
+                        // Only a successful parent scan proves absence; denied access is not absence.
+                        $siblings = @scandir($path);
+                        if (is_array($siblings) && !in_array($f, $siblings, true)) {
+                            $missing[] = fm_enc($f);
+                            if (function_exists('fm_search_index_remove_path')) fm_search_index_remove_path($new_path, 'already_missing');
+                            if (function_exists('fm_search_index_mark_dirty')) fm_search_index_mark_dirty('already_missing', $path);
+                            continue;
+                        }
+                    }
                     $reason = '';
                     set_error_handler(static function ($severity, $message) use (&$reason) {
                         if ($reason === '') $reason = $message;
@@ -239,10 +251,10 @@ class TFM_FileActionHandler {
             }
 
             if (empty($errors)) {
-                fm_set_msg(lng('Selected files and folder deleted'));
+                fm_set_msg(empty($missing) ? lng('Selected files and folder deleted') : 'Odstránené: ' . $deleted . '. Už neexistujú: ' . implode(', ', $missing) . '. Zoznam bol obnovený.');
             } else {
                 if (function_exists('fm_search_index_mark_dirty')) fm_search_index_mark_dirty('mass_delete_partial', $path);
-                fm_set_msg(lng('Error while deleting items') . ' — odstránené: ' . $deleted . ', neúspešné: ' . count($errors) . '<ul>' . implode('', $errors) . '</ul>', 'error');
+                fm_set_msg(lng('Error while deleting items') . ' — odstránené: ' . $deleted . ', neúspešné: ' . count($errors) . '<ul>' . implode('', $errors) . '</ul>' . (empty($missing) ? '' : 'Už neexistujú: ' . implode(', ', $missing)), 'error');
             }
         } else {
             fm_set_msg(lng('Nothing selected'), 'alert');

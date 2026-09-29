@@ -6935,7 +6935,7 @@ function fm_search_index_prepare($reason = 'request')
     $result['count'] = fm_search_index_count_scope($db, $scope);
     $result['last_full_index_at'] = isset($meta['last_full_index_at']) ? (int) $meta['last_full_index_at'] : 0;
 
-    if ((int) $meta['is_dirty'] === 0 && (int) $meta['last_full_index_at'] > 0) {
+    if ((int) $meta['is_dirty'] === 0 && (int) $meta['last_full_index_at'] > 0 && time() - (int) $meta['last_full_index_at'] < 60) {
         $result['success'] = true;
         $result['status'] = 'ready';
         $result['message'] = 'Search index already prepared.';
@@ -6982,7 +6982,7 @@ function fm_search_index_prepare($reason = 'request')
         $meta = fm_search_index_get_meta($db, $scope);
         $result['count'] = fm_search_index_count_scope($db, $scope);
         $result['last_full_index_at'] = isset($meta['last_full_index_at']) ? (int) $meta['last_full_index_at'] : 0;
-        if ((int) $meta['is_dirty'] === 0 && (int) $meta['last_full_index_at'] > 0) {
+        if ((int) $meta['is_dirty'] === 0 && (int) $meta['last_full_index_at'] > 0 && time() - (int) $meta['last_full_index_at'] < 60) {
             $result['success'] = true;
             $result['status'] = 'ready';
             $result['message'] = 'Search index became ready while waiting.';
@@ -7012,7 +7012,7 @@ function fm_search_index_prepare($reason = 'request')
 
     try {
         $meta = fm_search_index_get_meta($db, $scope);
-        if ((int) $meta['is_dirty'] === 0 && (int) $meta['last_full_index_at'] > 0) {
+        if ((int) $meta['is_dirty'] === 0 && (int) $meta['last_full_index_at'] > 0 && time() - (int) $meta['last_full_index_at'] < 60) {
             $result['success'] = true;
             $result['status'] = 'ready';
             $result['message'] = 'Search index already prepared.';
@@ -7029,7 +7029,7 @@ function fm_search_index_prepare($reason = 'request')
                 $meta = fm_search_index_get_meta($db, $scope);
                 $result['count'] = fm_search_index_count_scope($db, $scope);
                 $result['last_full_index_at'] = isset($meta['last_full_index_at']) ? (int) $meta['last_full_index_at'] : 0;
-                if ((int) $meta['is_dirty'] === 0 && (int) $meta['last_full_index_at'] > 0) {
+                if ((int) $meta['is_dirty'] === 0 && (int) $meta['last_full_index_at'] > 0 && time() - (int) $meta['last_full_index_at'] < 60) {
                     $result['success'] = true;
                     $result['status'] = 'rebuilt';
                     $result['message'] = 'Search index rebuilt successfully.';
@@ -7866,144 +7866,57 @@ function fm_search_index_move_path($oldAbsolutePath, $newAbsolutePath, $reason =
  */
 function fm_search_index_get_child_directories($parentPath = '')
 {
-    $db = fm_search_index_get_db();
-    if (!$db) {
-        return array(
-            'success' => false,
-            'message' => 'Search index database is not available.',
-            'path' => fm_clean_path((string) $parentPath),
-            'children' => array(),
-            'revision' => 0,
-        );
-    }
-
-    $scope = fm_search_scope_key();
     $parentPath = fm_clean_path((string) $parentPath);
-    $homePath = fm_clean_path((string) fm_get_navigation_home_root());
-
-    if ($parentPath === '' && $homePath !== '') {
-        $parentPath = $homePath;
+    if ($parentPath === '') $parentPath = fm_clean_path((string) fm_get_navigation_home_root());
+    $root = rtrim(str_replace('\\', '/', FM_ROOT_PATH), '/');
+    $absolute = $root . ($parentPath === '' ? '' : '/' . $parentPath);
+    $scope = fm_search_scope_key();
+    $response = array('success' => false, 'message' => '', 'path' => $parentPath, 'children' => array(), 'revision' => fm_search_index_get_tree_revision($scope));
+    if (!fm_is_within_navigation_home($absolute) || !fm_user_can_access_path($absolute, true)) {
+        $response['message'] = 'Access denied';
+        return $response;
     }
-
-    $rootPath = rtrim(str_replace('\\', '/', (string) FM_ROOT_PATH), '/');
-    if ($rootPath === '') {
-        return array(
-            'success' => false,
-            'message' => 'Root path is not available.',
-            'path' => $parentPath,
-            'children' => array(),
-            'revision' => 0,
-        );
+    clearstatcache();
+    $entries = @scandir($absolute);
+    if ($entries === false) {
+        $response['message'] = 'Priečinok neexistuje alebo ho server nedokáže prečítať.';
+        return $response;
     }
-
-    $absoluteParent = $rootPath . ($parentPath !== '' ? '/' . $parentPath : '');
-    if (!fm_is_within_navigation_home($absoluteParent) || !fm_user_can_access_path($absoluteParent, true)) {
-        return array(
-            'success' => false,
-            'message' => 'Access denied',
-            'path' => $parentPath,
-            'children' => array(),
-            'revision' => fm_search_index_get_tree_revision($scope),
-        );
-    }
-
-    if (!fm_search_index_ensure_fresh($db, $scope)) {
-        return array(
-            'success' => false,
-            'message' => 'Search index is not ready yet.',
-            'path' => $parentPath,
-            'children' => array(),
-            'revision' => fm_search_index_get_tree_revision($scope),
-        );
-    }
-
-    try {
-        $stmt = $db->prepare('SELECT
-                c.name AS name,
-                c.rel_path AS path,
-                CASE WHEN EXISTS (
-                    SELECT 1
-                    FROM fm_file_index AS cc
-                    WHERE cc.scope_key = c.scope_key
-                      AND cc.is_dir = 1
-                      AND cc.dir_path = c.rel_path
-                    LIMIT 1
-                ) THEN 1 ELSE 0 END AS has_children
-            FROM fm_file_index AS c
-            WHERE c.scope_key = :scope
-              AND c.is_dir = 1
-              AND c.dir_path = :parent
-            ORDER BY c.name_lc ASC, c.name ASC');
-
-        if (!$stmt) {
-            return array(
-                'success' => false,
-                'message' => 'Search index query preparation failed.',
-                'path' => $parentPath,
-                'children' => array(),
-                'revision' => fm_search_index_get_tree_revision($scope),
-            );
+    $allDirectories = array();
+    foreach ($entries as $name) {
+        if ($name === '.' || $name === '..') continue;
+        $path = $absolute . '/' . $name;
+        if (!is_dir($path) || !fm_user_can_access_path($path, true)) continue;
+        $allDirectories[] = $name;
+        if ((!FM_SHOW_HIDDEN && substr($name, 0, 1) === '.') || !fm_is_within_navigation_home($path) || !fm_is_exclude_items($name, $path)) continue;
+        $hasChildren = false;
+        foreach ((array) @scandir($path) as $child) {
+            if (!is_string($child) || $child === '.' || $child === '..') continue;
+            $childPath = $path . '/' . $child;
+            if ((!FM_SHOW_HIDDEN && substr($child, 0, 1) === '.') || !is_dir($childPath)) continue;
+            if (fm_user_can_access_path($childPath, true) && fm_is_within_navigation_home($childPath) && fm_is_exclude_items($child, $childPath)) { $hasChildren = true; break; }
         }
-
-        $stmt->bindValue(':scope', (string) $scope, SQLITE3_TEXT);
-        $stmt->bindValue(':parent', (string) $parentPath, SQLITE3_TEXT);
-        $result = $stmt->execute();
-        if (!$result) {
-            return array(
-                'success' => false,
-                'message' => 'Search index query execution failed.',
-                'path' => $parentPath,
-                'children' => array(),
-                'revision' => fm_search_index_get_tree_revision($scope),
-            );
-        }
-
-        $children = array();
-        while ($row = $result->fetchArray(SQLITE3_ASSOC)) {
-            $name = isset($row['name']) ? (string) $row['name'] : '';
-            $path = isset($row['path']) ? fm_clean_path((string) $row['path']) : '';
-            if ($name === '' || $path === '') {
-                continue;
-            }
-            if (!FM_SHOW_HIDDEN && substr($name, 0, 1) === '.') {
-                continue;
-            }
-
-            $absolutePath = $rootPath . '/' . $path;
-            if (!fm_is_within_navigation_home($absolutePath) || !fm_user_can_access_path($absolutePath, true)) {
-                continue;
-            }
-            if (!fm_is_exclude_items($name, $absolutePath)) {
-                continue;
-            }
-
-            $children[] = array(
-                'name' => $name,
-                'path' => $path,
-                'has_children' => !empty($row['has_children']),
-            );
-        }
-
-        return array(
-            'success' => true,
-            'message' => '',
-            'path' => $parentPath,
-            'children' => $children,
-            'revision' => fm_search_index_get_tree_revision($scope),
-        );
-    } catch (Exception $e) {
-        fm_search_log_event('folder_tree_children_query_failed', array(
-            'parent' => $parentPath,
-            'message' => $e->getMessage(),
-        ));
-        return array(
-            'success' => false,
-            'message' => 'Folder tree query failed.',
-            'path' => $parentPath,
-            'children' => array(),
-            'revision' => fm_search_index_get_tree_revision($scope),
-        );
+        $response['children'][] = array('name' => $name, 'path' => trim($parentPath . '/' . $name, '/'), 'has_children' => $hasChildren);
     }
+    usort($response['children'], static function ($a, $b) { return strnatcasecmp($a['name'], $b['name']); });
+    // The live listing remains usable even when SQLite is unavailable.
+    $db = fm_search_index_get_db();
+    if ($db) {
+        $stmt = $db->prepare('SELECT name FROM fm_file_index WHERE scope_key = :scope AND dir_path = :parent AND is_dir = 1');
+        if ($stmt) {
+            $stmt->bindValue(':scope', $scope, SQLITE3_TEXT);
+            $stmt->bindValue(':parent', $parentPath, SQLITE3_TEXT);
+            $result = $stmt->execute();
+            if ($result) {
+                $indexed = array();
+                while ($row = $result->fetchArray(SQLITE3_ASSOC)) $indexed[] = $row['name'];
+                sort($indexed); sort($allDirectories);
+                if ($indexed !== $allDirectories) fm_search_index_mark_dirty('external_directory_change', $absolute);
+            }
+        }
+    }
+    $response['success'] = true;
+    return $response;
 }
 
 /**
@@ -8132,7 +8045,7 @@ function fm_search_index_rebuild($db, $scope, $baseDir = '')
                         return false;
                     }
 
-                    $stack[] = $abs;
+                    if (!is_link($abs)) $stack[] = $abs;
                     continue;
                 }
 
@@ -8148,7 +8061,8 @@ function fm_search_index_rebuild($db, $scope, $baseDir = '')
         }
 
         if ($baseDir === '') {
-            fm_search_index_set_clean_meta($db, $scope, $indexedAt);
+            fm_search_index_set_clean_meta($db, $scope, time());
+            fm_search_index_bump_tree_revision('full_rebuild', $db, $scope);
         }
 
         $db->exec('COMMIT');
@@ -8247,6 +8161,9 @@ function fm_search_index_query($dir = '', $filter = '')
         $rows = array();
         while ($row = $result->fetchArray(SQLITE3_ASSOC)) {
             $dirPath = isset($row['dir_path']) ? (string) $row['dir_path'] : '';
+            $livePath = rtrim(FM_ROOT_PATH, '/\\') . '/' . ($dirPath === '' ? '' : $dirPath . '/') . $row['name'];
+            clearstatcache(true, $livePath);
+            if (!is_file($livePath) || !fm_user_can_access_path($livePath, false)) continue;
             $rows[] = array(
                 'name' => isset($row['name']) ? (string) $row['name'] : '',
                 'type' => 'file',

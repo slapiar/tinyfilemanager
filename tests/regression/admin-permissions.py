@@ -131,8 +131,30 @@ echo 'ready';
         (root / 'data/other/bulk-ok.txt').write_text('delete fixture')
         payload = [('token', 'test-csrf-token'), ('group', '1'), ('delete', 'Delete'), ('file[]', 'bulk-ok.txt'), ('file[]', 'missing<item>.txt')]
         status, body = request('admin', 'p=other', payload)
-        assert 'odstránené: 1, neúspešné: 1' in body and 'missing&lt;item&gt;.txt' in body
-        assert 'Položka neexistuje' in body and not (root / 'data/other/bulk-ok.txt').exists()
+        assert 'Odstránené: 1. Už neexistujú:' in body and 'missing&lt;item&gt;.txt' in body
+        assert 'neúspešné:' not in body and not (root / 'data/other/bulk-ok.txt').exists()
+        # External filesystem changes: live folders, stale deletes and bounded search refresh.
+        (root / 'data/other/old-external').mkdir()
+        request('admin', 'p=other')
+        (root / 'data/other/old-external').rename(root / 'data/other/new-external')
+        status, body = request('admin', 'p=other')
+        assert 'new-external' in body and 'old-external' not in body
+        status, body = request('reader', 'p=other', {'ajax':'1','token':'test-csrf-token','type':'folder_tree_children','path':'other'})
+        names = [item['name'] for item in json.loads(body)['children']]
+        assert 'new-external' in names and 'old-external' not in names
+        (root / 'data/other/new-external').rmdir()
+        status, body = request('admin', 'p=other', [('token','test-csrf-token'),('group','1'),('delete','Delete'),('file[]','new-external')])
+        assert 'Už neexistujú: new-external' in body and 'neúspešné:' not in body
+        (root / 'data/other/late-search.txt').write_text('external')
+        index = sqlite3.connect(root / 'state/search-index.sqlite')
+        index.execute('UPDATE fm_file_index_meta SET last_full_index_at = ?, is_dirty = 0', (int(time.time()) - 61,))
+        index.commit()
+        status, body = request('admin', 'p=other', {'ajax':'1','token':'test-csrf-token','type':'search','path':'other','content':'late-search'})
+        assert 'late-search.txt' in body, body
+        (root / 'data/other/late-search.txt').unlink()
+        status, body = request('admin', 'p=other', {'ajax':'1','token':'test-csrf-token','type':'search','path':'other','content':'late-search'})
+        assert 'late-search.txt' not in body, body
+        index.close()
         # AI Browser is visible and accessible only to the administrator during development.
         for user, directory in [('reader', 'other'), ('manager', 'manager')]:
             status, body = request(user, 'p=' + directory)
