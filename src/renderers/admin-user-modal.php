@@ -12,10 +12,10 @@ if (!isset($modal_note)) $modal_note = '';
 if (!isset($modal_welcome_message)) $modal_welcome_message = '';
 if (!isset($modal_bulk_actions_enabled)) $modal_bulk_actions_enabled = true;
 if (!isset($modal_manager_users) || !is_array($modal_manager_users)) $modal_manager_users = array();
-if (!isset($modal_manager_owner)) $modal_manager_owner = 'admin';
+if (!isset($modal_manager_owner)) $modal_manager_owner = fm_admin_username();
 if (!isset($modal_is_manager_actor)) $modal_is_manager_actor = false;
 
-$readonly = $modal_mode === 'edit' ? 'readonly' : '';
+$readonly = $modal_mode === 'edit' && !(defined('FM_IS_ADMIN') && FM_IS_ADMIN) ? 'readonly' : '';
 $now = date('Y-m-d\TH:i');
 $title = $modal_mode === 'edit' ? lng('Edit user') : lng('New user');
 $username_value = htmlspecialchars($modal_username, ENT_QUOTES, 'UTF-8');
@@ -40,10 +40,11 @@ $can_assign_manager_owner = !$modal_is_manager_actor;
       </div>
       <form id="admin-user-modal-form" method="post" action="<?php echo htmlspecialchars(FM_SELF_URL . '?p=' . urlencode(FM_PATH) . '&admin_users_save=1', ENT_QUOTES, 'UTF-8'); ?>" autocomplete="off">
         <div class="modal-body">
+          <input type="hidden" name="original_username" value="<?php echo $username_value; ?>">
           <div id="admin-user-modal-error" class="alert alert-danger d-none" role="alert"></div>
           <div class="mb-3">
             <label for="admin-username" class="form-label"><?php echo lng('Username'); ?></label>
-            <input type="text" class="form-control" id="admin-username" name="username" value="<?php echo $username_value; ?>" <?php echo $readonly; ?> required>
+            <input type="text" class="form-control" id="admin-username" name="username" minlength="2" maxlength="64" pattern="[A-Za-z0-9._\-]{2,64}" value="<?php echo $username_value; ?>" <?php echo $readonly; ?> required>
           </div>
           <div class="mb-3">
             <label for="admin-password" class="form-label"><?php echo lng('Password'); ?></label>
@@ -68,7 +69,7 @@ $can_assign_manager_owner = !$modal_is_manager_actor;
           <div class="mb-3">
             <label for="admin-manager-owner" class="form-label">Zodpovedný manažér</label>
             <select class="form-select" id="admin-manager-owner" name="manager_owner">
-              <option value="admin" <?php echo $modal_manager_owner === 'admin' ? 'selected' : ''; ?>>admin</option>
+              <option value="<?php echo fm_enc(fm_admin_username()); ?>" <?php echo $modal_manager_owner === fm_admin_username() ? 'selected' : ''; ?>><?php echo fm_enc(fm_admin_username()); ?></option>
               <?php foreach ($modal_manager_users as $manager_name): ?>
                 <option value="<?php echo htmlspecialchars((string) $manager_name, ENT_QUOTES, 'UTF-8'); ?>" <?php echo $modal_manager_owner === (string) $manager_name ? 'selected' : ''; ?>><?php echo htmlspecialchars((string) $manager_name, ENT_QUOTES, 'UTF-8'); ?></option>
               <?php endforeach; ?>
@@ -203,7 +204,7 @@ $can_assign_manager_owner = !$modal_is_manager_actor;
   var deleteBtn = document.getElementById('admin-user-delete-btn');
   if (deleteBtn) {
     deleteBtn.addEventListener('click', function() {
-      var username = document.getElementById('admin-username').value;
+      var username = document.querySelector('[name=original_username]').value;
       var confirmBox = document.createElement('div');
       confirmBox.className = 'modal fade';
       confirmBox.id = 'admin-user-delete-confirm';

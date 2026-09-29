@@ -19,7 +19,7 @@ $config_is_writable = is_file($config_file_path) && is_writable($config_file_pat
 $fm_admin_return_path = isset($_GET['p']) ? (string) $_GET['p'] : (defined('FM_PATH') ? (string) FM_PATH : '');
 $admin_close_label = (isset($lang) && $lang === 'sk') ? 'Zatvoriť' : 'Cancel';
 $admin_ajax_token = isset($_SESSION['token']) ? (string) $_SESSION['token'] : '';
-$owner_map_choices = array_values(array_unique(array_merge(array('admin'), array_map('strval', $manager_users))));
+$owner_map_choices = array_values(array_unique(array_merge(array(fm_admin_username()), array_map('strval', $manager_users))));
 
 // Union of all usernames
 $usernames = array();
@@ -85,7 +85,7 @@ function user_status($u, $auth_users, $readonly_users, $upload_only_users, $mana
 
 function user_owner_label($u, $user_manager_owners, $manager_users) {
     if (!function_exists('fm_admin_get_user_manager_owner')) {
-        return 'admin';
+        return fm_admin_username();
     }
     return fm_admin_get_user_manager_owner($u, $user_manager_owners, $manager_users);
 }
@@ -510,7 +510,7 @@ function user_owner_label($u, $user_manager_owners, $manager_users) {
                         return normalized;
                     }
                 }
-                return 'admin';
+                return <?php echo json_encode(fm_admin_username()); ?>;
             }
 
             function escapeHtml(value) {
@@ -550,7 +550,7 @@ function user_owner_label($u, $user_manager_owners, $manager_users) {
                 forEachNode(visibleRows, function (row) {
                     var changed = !!row.changed;
                     var username = String(row.username || '');
-                    var newOwner = normalizeOwnerValue(row.new_owner || 'admin');
+                    var newOwner = normalizeOwnerValue(row.new_owner || <?php echo json_encode(fm_admin_username()); ?>);
                     var ownerOptions = '';
                     forEachNode(ownerMapChoices, function (choice) {
                         var selected = String(choice) === newOwner ? ' selected' : '';
@@ -688,7 +688,7 @@ function user_owner_label($u, $user_manager_owners, $manager_users) {
                 var map = {};
                 forEachNode(rows, function (row) {
                     var username = String(row && row.username ? row.username : '').trim();
-                    var owner = normalizeOwnerValue(row && row.new_owner ? row.new_owner : 'admin');
+                    var owner = normalizeOwnerValue(row && row.new_owner ? row.new_owner : <?php echo json_encode(fm_admin_username()); ?>);
                     if (!username || !owner) {
                         return;
                     }
@@ -1015,7 +1015,8 @@ function user_owner_label($u, $user_manager_owners, $manager_users) {
 
                 var usernameInput = document.getElementById('admin-username');
                 var tokenInput = document.querySelector('#admin-user-modal-form input[name="token"]');
-                var username = usernameInput ? String(usernameInput.value || '') : '';
+                var originalInput = document.querySelector('#admin-user-modal-form [name=original_username]');
+                var username = originalInput ? String(originalInput.value || '') : '';
                 var token = tokenInput ? String(tokenInput.value || '') : '';
                 if (!username || !token) {
                     showModalError('Missing username or token.');

@@ -29,6 +29,10 @@ function fm_user_can_access_path($path, $allow_parent = false)
 {
     global $fm_user_allowed_dirs;
 
+    if (defined('FM_IS_ADMIN') && FM_IS_ADMIN) {
+        return true;
+    }
+
     if (empty($fm_user_allowed_dirs) || !is_array($fm_user_allowed_dirs)) {
         return true;
     }
