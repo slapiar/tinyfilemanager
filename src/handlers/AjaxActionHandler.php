@@ -387,6 +387,10 @@ class TFM_AjaxActionHandler {
             $cfg->data['fallback_logging'] = $fallbackLoggingEnabled;
         }
         $saved = $cfg->save();
+        if ($saved) {
+            // A previous session-only fallback must not override the newly saved profile.
+            unset($_SESSION[FM_SESSION_ID]['user_settings']);
+        }
         $saveMessage = $saved ? 'Settings saved successfully' : ($cfg->getLastError() ? $cfg->getLastError() : 'Settings could not be saved.');
 
         if (!$saved && session_status() === PHP_SESSION_ACTIVE) {
@@ -501,7 +505,7 @@ class TFM_AjaxActionHandler {
             exit;
         }
 
-        if ($username !== 'admin') {
+        if (!(defined('FM_IS_ADMIN') && FM_IS_ADMIN)) {
             echo json_encode(array('success' => false, 'msg' => 'Fallback log moze vycistit iba admin.'));
             exit;
         }
@@ -556,7 +560,7 @@ class TFM_AjaxActionHandler {
             exit;
         }
 
-        if ($username !== 'admin') {
+        if (!(defined('FM_IS_ADMIN') && FM_IS_ADMIN)) {
             echo json_encode(array('success' => false, 'msg' => 'Tato akcia je dostupna iba pre admina.'));
             exit;
         }

@@ -48,6 +48,9 @@ $use_auth = true;
 session_name('filemanager'); session_start();
 $_SESSION['filemanager']['logged'] = $_GET['user'];
 $_SESSION['token'] = 'test-csrf-token';
+if (isset($_GET['stale_settings'])) {
+    $_SESSION['filemanager']['user_settings'] = array('fallback_logging' => false, 'display_defaults_version' => 1);
+}
 if (isset($_GET['enable_writes'])) {
     require __DIR__ . '/config.php';
     function fm_runtime_state_dir() { return __DIR__ . '/state'; }
@@ -107,6 +110,24 @@ echo 'ready';
         status, body = request('admin', '', {'ajax': '1', 'type': 'settings', 'token': 'test-csrf-token', 'js-language': 'sk', 'js-theme-3': 'light', 'js-list-density': 'normal'})
         status, body = request('admin', 'p=other')
         assert 'data-bs-theme="light"' in body and 'fm-density-normal' in body, body[:300]
+        # Recover from a former session-only fallback and retain the new value.
+        request('admin', 'stale_settings=1', fixture=True)
+        settings = {'ajax': '1', 'type': 'settings', 'token': 'test-csrf-token', 'js-language': 'sk', 'js-theme-3': 'light', 'js-list-density': 'normal', 'js-fallback-log-enabled': 'true'}
+        status, body = request('admin', '', settings)
+        assert status == 200 and json.loads(body)['success'], body
+        status, body = request('admin', 'p=other&settings=1')
+        checkbox = re.search(r'<input[^>]+id="js-fallback-log-enabled"[^>]*>', body).group()
+        assert 'checked' in checkbox, checkbox
+        # Also survives a fresh authenticated session, not just a page reload.
+        clients.pop('admin')
+        request('admin', fixture=True)
+        status, body = request('admin', 'p=other&settings=1')
+        assert 'checked' in re.search(r'<input[^>]+id="js-fallback-log-enabled"[^>]*>', body).group()
+        settings.pop('js-fallback-log-enabled')
+        status, body = request('admin', '', settings)
+        assert json.loads(body)['success'], body
+        status, body = request('admin', 'p=other&settings=1')
+        assert 'checked' not in re.search(r'<input[^>]+id="js-fallback-log-enabled"[^>]*>', body).group()
         status, body = request('admin', 'admin_users_modal=edit&user=reader')
         assert 'name="original_username"' in body and 'minlength="2"' in body, body[:300]
         username_input = re.search(r'<input[^>]+id="admin-username"[^>]*>', body).group()
@@ -157,12 +178,14 @@ echo 'ready';
         status, body = save('admin', 'boss', original='admin', directory='')
         assert status == 200 and json.loads(body)['ok'], body
         assert state()['admin_identity']['username'] == 'boss'
+        status, body = request('admin', '', {'ajax': '1', 'type': 'settings_clear_fallback_log', 'token': 'test-csrf-token'})
+        assert status == 200 and json.loads(body)['success'], body
         # The existing administrator session follows its new login.
         status, body = save('admin', 'ok', password='test-pass', owner='boss')
         assert status == 200 and json.loads(body)['ok'], body
         status, body = request('admin', 'p=other')
         assert 'evidence.txt' in body, body[:500]
-        print('PASS: admin visibility, editable name, 2-character names, rename/password/roles, collision rejection, manager boundary, cross-scope folder refresh, admin self-rename/session, dark/compact profile migration and personal overrides, manager chat across different directories')
+        print('PASS: admin visibility, editable name, 2-character names, rename/password/roles, collision rejection, manager boundary, cross-scope folder refresh, admin self-rename/session, dark/compact profile migration and personal overrides, manager chat across different directories, fallback toggle on/off and session recovery')
     except Exception:
         log.flush()
         print((root / 'server.log').read_text()[-4500:])

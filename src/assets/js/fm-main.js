@@ -1,5 +1,4 @@
-// Patch: Načítanie vlastných CSS štýlov
-import './asset/css/custom.css';
+// Loaded as a classic browser script; stylesheets are loaded by the PHP layout.
   function readJsonConfig(id) {
     var el = document.getElementById(id);
     if (!el) {
