@@ -120,6 +120,19 @@ echo 'ready';
         status, body = request('reader', 'p=other')
         assert 'value="manager">manager (manažér)</option>' in body
         assert 'data-bs-theme="dark"' in body and 'fm-density-compact' in body
+        # Admin bulk delete works despite configured role restrictions, including nested folders.
+        (root / 'data/other/bulk-folder').mkdir()
+        (root / 'data/other/bulk-folder/child.txt').write_text('delete fixture')
+        (root / 'data/other/bulk-file.txt').write_text('delete fixture')
+        payload = [('token', 'test-csrf-token'), ('group', '1'), ('delete', 'Delete'), ('file[]', 'bulk-folder'), ('file[]', 'bulk-file.txt'), ('file[]', 'bulk-file.txt')]
+        status, body = request('admin', 'p=other', payload)
+        assert not (root / 'data/other/bulk-folder').exists() and not (root / 'data/other/bulk-file.txt').exists()
+        assert 'neúspešné:' not in body
+        (root / 'data/other/bulk-ok.txt').write_text('delete fixture')
+        payload = [('token', 'test-csrf-token'), ('group', '1'), ('delete', 'Delete'), ('file[]', 'bulk-ok.txt'), ('file[]', 'missing<item>.txt')]
+        status, body = request('admin', 'p=other', payload)
+        assert 'odstránené: 1, neúspešné: 1' in body and 'missing&lt;item&gt;.txt' in body
+        assert 'Položka neexistuje' in body and not (root / 'data/other/bulk-ok.txt').exists()
         # AI Browser is visible and accessible only to the administrator during development.
         for user, directory in [('reader', 'other'), ('manager', 'manager')]:
             status, body = request(user, 'p=' + directory)
