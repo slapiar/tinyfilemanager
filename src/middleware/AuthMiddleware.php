@@ -112,7 +112,7 @@ class TFM_AuthMiddleware {
      * Validate username format
      */
     private function validateUsername($username) {
-        return preg_match('/^[a-zA-Z0-9_\-\.]{3,32}$/', $username);
+        return preg_match('/^[a-zA-Z0-9_\-\.]{2,64}$/', $username);
     }
     
     /**

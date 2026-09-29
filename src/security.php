@@ -360,7 +360,7 @@ function fm_validate_input($input, $type = 'filename') {
             return $input;
             
         case 'username':
-            return preg_match('/^[a-zA-Z0-9_\-\.]{3,32}$/', $input) ? $input : false;
+            return preg_match('/^[a-zA-Z0-9_\-\.]{2,64}$/', $input) ? $input : false;
             
         case 'email':
             return filter_var($input, FILTER_VALIDATE_EMAIL) ? $input : false;

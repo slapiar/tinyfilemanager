@@ -34,6 +34,9 @@ jobs:
       - name: PHP syntax check
         run: find src tests -name '*.php' -print0 | xargs -0 -n1 php -l
 
+      - name: Admin permission regression tests
+        run: python3 tests/regression/admin-permissions.py
+
       - name: Run unit tests
         run: composer test:unit
 

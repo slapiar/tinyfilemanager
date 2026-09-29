@@ -73,6 +73,7 @@ $global_readonly = false;
 
 // User-specific directories (leave empty – managed in config.php)
 // array('Username' => 'Directory path', 'Username2' => array('Dir1', 'Dir2'), ...)
+$admin_identity = array('username' => 'admin');
 $directories_users = array();
 
 // Ownership map for user administration and chat scoping.
@@ -907,8 +908,12 @@ if (isset($user_home_root) && is_string($user_home_root) && trim($user_home_root
     }
 }
 
+$fm_logged_user = isset($_SESSION[FM_SESSION_ID]['logged']) ? (string) $_SESSION[FM_SESSION_ID]['logged'] : '';
+$fm_is_super_admin = ($fm_logged_user === fm_admin_username());
+define('FM_IS_ADMIN', $fm_is_super_admin);
+
 // build per-user allowed directory list (optional restrictions)
-if ($use_auth && isset($_SESSION[FM_SESSION_ID]['logged'], $directories_users[$_SESSION[FM_SESSION_ID]['logged']])) {
+if (!$fm_is_super_admin && $use_auth && isset($_SESSION[FM_SESSION_ID]['logged'], $directories_users[$_SESSION[FM_SESSION_ID]['logged']])) {
     $user_dirs = $directories_users[$_SESSION[FM_SESSION_ID]['logged']];
     if (!is_array($user_dirs)) {
         $user_dirs = array($user_dirs);
@@ -962,8 +967,8 @@ if ($use_auth && isset($_SESSION[FM_SESSION_ID]['logged'])) {
     fm_search_index_auto_bootstrap(true, 'unauthenticated_instance_request');
 }
 defined('FM_LANG') || define('FM_LANG', $lang);
-defined('FM_FILE_EXTENSION') || define('FM_FILE_EXTENSION', $allowed_file_extensions);
-defined('FM_UPLOAD_EXTENSION') || define('FM_UPLOAD_EXTENSION', $allowed_upload_extensions);
+defined('FM_FILE_EXTENSION') || define('FM_FILE_EXTENSION', FM_IS_ADMIN ? '' : $allowed_file_extensions);
+defined('FM_UPLOAD_EXTENSION') || define('FM_UPLOAD_EXTENSION', FM_IS_ADMIN ? '' : $allowed_upload_extensions);
 defined('FM_EXCLUDE_ITEMS') || define('FM_EXCLUDE_ITEMS', (version_compare(PHP_VERSION, '7.0.0', '<') ? serialize($exclude_items) : $exclude_items));
 defined('FM_DOC_VIEWER') || define('FM_DOC_VIEWER', $online_viewer);
 $docx_preview_mode = strtolower(trim((string) $docx_preview_mode));
@@ -972,9 +977,8 @@ if (!in_array($docx_preview_mode, array('auto', 'local', 'microsoft'), true)) {
 }
 defined('FM_DOCX_PREVIEW_MODE') || define('FM_DOCX_PREVIEW_MODE', $docx_preview_mode);
 $fm_logged_user = isset($_SESSION[FM_SESSION_ID]['logged']) ? (string) $_SESSION[FM_SESSION_ID]['logged'] : '';
-$fm_is_super_admin = ($fm_logged_user === 'admin');
-define('FM_IS_ADMIN', $fm_is_super_admin);
-define('FM_READONLY', $global_readonly || (!$fm_is_super_admin && $use_auth && !empty($readonly_users) && in_array($fm_logged_user, $readonly_users, true)));
+$fm_is_super_admin = ($fm_logged_user === fm_admin_username());
+define('FM_READONLY', !$fm_is_super_admin && ($global_readonly || ($use_auth && !empty($readonly_users) && in_array($fm_logged_user, $readonly_users, true))));
 define('FM_UPLOAD_ONLY', !$fm_is_super_admin && $use_auth && !empty($upload_only_users) && in_array($fm_logged_user, $upload_only_users, true));
 define('FM_MANAGER', !$fm_is_super_admin && $use_auth && !empty($manager_users) && in_array($fm_logged_user, $manager_users, true));
 define('FM_CAN_MANAGE_USERS', FM_IS_ADMIN || FM_MANAGER);
@@ -998,7 +1002,7 @@ if (!$use_auth) {
 } elseif ($fm_logged_user !== '') {
     $fm_bulk_actions_enabled = !in_array($fm_logged_user, $bulk_actions_disabled_users, true);
 }
-define('FM_BULK_ACTIONS_ENABLED', $fm_bulk_actions_enabled);
+define('FM_BULK_ACTIONS_ENABLED', FM_IS_ADMIN || $fm_bulk_actions_enabled);
 
 $fm_is_ajax_request = (
     (isset($_POST['ajax']) && (string) $_POST['ajax'] !== '')
@@ -1128,8 +1132,8 @@ if (isset($_GET['admin_users_owner_map'])) {
             $merged_owner_map = array();
             foreach (array_keys($auth_users_local) as $known_username) {
                 $known_username = (string) $known_username;
-                if ($known_username === 'admin' || isset($manager_set_local[$known_username])) {
-                    $merged_owner_map[$known_username] = 'admin';
+                if ($known_username === fm_admin_username() || isset($manager_set_local[$known_username])) {
+                    $merged_owner_map[$known_username] = fm_admin_username();
                     continue;
                 }
 
@@ -1141,14 +1145,14 @@ if (isset($_GET['admin_users_owner_map'])) {
                 if (isset($normalized_existing_local[$known_username])) {
                     $merged_owner_map[$known_username] = (string) $normalized_existing_local[$known_username];
                 } else {
-                    $merged_owner_map[$known_username] = 'admin';
+                    $merged_owner_map[$known_username] = fm_admin_username();
                 }
             }
             ksort($merged_owner_map);
             $plan['owners'] = $merged_owner_map;
             $plan['rows'] = array_map(static function ($row) use ($merged_owner_map) {
                 $username = isset($row['username']) ? (string) $row['username'] : '';
-                $new_owner = isset($merged_owner_map[$username]) ? (string) $merged_owner_map[$username] : (isset($row['new_owner']) ? (string) $row['new_owner'] : 'admin');
+                $new_owner = isset($merged_owner_map[$username]) ? (string) $merged_owner_map[$username] : (isset($row['new_owner']) ? (string) $row['new_owner'] : fm_admin_username());
                 $current_owner = isset($row['current_owner']) ? (string) $row['current_owner'] : '-';
                 return array(
                     'username' => $username,
@@ -1186,7 +1190,7 @@ if (isset($_GET['admin_users_owner_map'])) {
             exit;
         }
 
-        $actor = isset($_SESSION[FM_SESSION_ID]['logged']) ? (string) $_SESSION[FM_SESSION_ID]['logged'] : 'admin';
+        $actor = isset($_SESSION[FM_SESSION_ID]['logged']) ? (string) $_SESSION[FM_SESSION_ID]['logged'] : fm_admin_username();
         fm_admin_write_audit_event('owner_map_apply', $actor, 'user_manager_owners', array(
             'rebuild' => $rebuild,
             'users_total' => isset($plan['summary']['users_total']) ? (int) $plan['summary']['users_total'] : 0,
@@ -1233,8 +1237,8 @@ if (isset($_GET['admin_config_snapshots'])) {
         }
 
         $restore_result = fm_config_store_restore_snapshot($snapshot_id, array(
-            'created_by' => isset($_SESSION[FM_SESSION_ID]['logged']) ? (string) $_SESSION[FM_SESSION_ID]['logged'] : 'admin',
-            'updated_by' => isset($_SESSION[FM_SESSION_ID]['logged']) ? (string) $_SESSION[FM_SESSION_ID]['logged'] : 'admin',
+            'created_by' => isset($_SESSION[FM_SESSION_ID]['logged']) ? (string) $_SESSION[FM_SESSION_ID]['logged'] : fm_admin_username(),
+            'updated_by' => isset($_SESSION[FM_SESSION_ID]['logged']) ? (string) $_SESSION[FM_SESSION_ID]['logged'] : fm_admin_username(),
         ));
 
         if (empty($restore_result['ok'])) {
@@ -1306,6 +1310,7 @@ if (isset($_GET['admin_users_save'])) {
     $mode = isset($_POST['mode']) && $_POST['mode'] === 'edit' ? 'edit' : 'new';
     $actor = isset($_SESSION[FM_SESSION_ID]['logged']) ? (string) $_SESSION[FM_SESSION_ID]['logged'] : '';
     $username = isset($_POST['username']) ? trim((string) $_POST['username']) : '';
+    $original_username = $mode === 'edit' && isset($_POST['original_username']) ? trim((string) $_POST['original_username']) : $username;
     $password = isset($_POST['password']) ? (string) $_POST['password'] : '';
     $password2 = isset($_POST['password2']) ? (string) $_POST['password2'] : '';
     $access_type = isset($_POST['access_type']) ? trim((string) $_POST['access_type']) : 'standard';
@@ -1351,6 +1356,44 @@ if (isset($_GET['admin_users_save'])) {
         : array();
     $user_manager_owners_local = fm_admin_normalize_user_manager_owners($user_manager_owners_local, $manager_users_local, $auth_users_local);
 
+    if ($mode === 'edit' && $original_username !== $username) {
+        if (!FM_IS_ADMIN) {
+            $admin_users_respond_error(403, 'Only the administrator can rename users.');
+        }
+        if (!isset($auth_users_local[$original_username])) {
+            $admin_users_respond_error(404, 'User not found');
+        }
+        foreach (array($auth_users_local, $directories_users_local, $user_notes_local, $user_welcome_messages_local, $user_manager_owners_local) as $map) {
+            if (array_key_exists($username, $map)) {
+                $admin_users_respond_error(400, 'User already exists');
+            }
+        }
+        foreach (array($readonly_users_local, $upload_only_users_local, $manager_users_local, $bulk_actions_disabled_users_local, $welcome_message_shown_users_local) as $list) {
+            if (in_array($username, $list, true)) {
+                $admin_users_respond_error(400, 'User already exists');
+            }
+        }
+        foreach (array('auth_users_local', 'directories_users_local', 'user_notes_local', 'user_welcome_messages_local', 'user_manager_owners_local') as $key) {
+            if (array_key_exists($original_username, $$key)) {
+                ${$key}[$username] = ${$key}[$original_username];
+                unset(${$key}[$original_username]);
+            }
+        }
+        foreach (array('readonly_users_local', 'upload_only_users_local', 'manager_users_local', 'bulk_actions_disabled_users_local', 'welcome_message_shown_users_local') as $key) {
+            $$key = array_map(static function ($value) use ($original_username, $username) {
+                return $value === $original_username ? $username : $value;
+            }, $$key);
+        }
+        foreach ($user_manager_owners_local as &$owner) {
+            if ($owner === $original_username) $owner = $username;
+        }
+        unset($owner);
+        if ($manager_owner === $original_username) $manager_owner = $username;
+        if ($original_username === fm_admin_username()) {
+            $admin_identity = array('username' => $username);
+        }
+    }
+
     $exists = array_key_exists($username, $auth_users_local)
         || in_array($username, $readonly_users_local, true)
         || in_array($username, $upload_only_users_local, true)
@@ -1378,7 +1421,7 @@ if (isset($_GET['admin_users_save'])) {
             $admin_users_respond_error(403, 'Manager can only edit users assigned to them.');
         }
 
-        if ($mode === 'new' && ($username === 'admin' || in_array($username, $manager_users_local, true) || $username === $actor)) {
+        if ($mode === 'new' && ($username === fm_admin_username() || in_array($username, $manager_users_local, true) || $username === $actor)) {
             $admin_users_respond_error(403, 'Manager cannot create this account.');
         }
     }
@@ -1437,7 +1480,9 @@ if (isset($_GET['admin_users_save'])) {
         $parsed_dirs = array($default_assigned_dir);
     }
     $new_dirs_count = count($parsed_dirs);
-    if (count($parsed_dirs) === 0) {
+    if (count($parsed_dirs) === 0 && $username === fm_admin_username()) {
+        unset($directories_users_local[$username]);
+    } elseif (count($parsed_dirs) === 0) {
         $admin_users_respond_error(400, lng('At least one directory must be assigned.'));
     } elseif (count($parsed_dirs) === 1) {
         $directories_users_local[$username] = $parsed_dirs[0];
@@ -1451,14 +1496,14 @@ if (isset($_GET['admin_users_save'])) {
         $user_notes_local[$username] = $note;
     }
 
-    if ($access_type === 'manager' || $username === 'admin') {
-        $user_manager_owners_local[$username] = 'admin';
+    if ($access_type === 'manager' || $username === fm_admin_username()) {
+        $user_manager_owners_local[$username] = fm_admin_username();
     } else {
         if (FM_MANAGER && !FM_IS_ADMIN) {
             $user_manager_owners_local[$username] = $actor;
         } else {
-            if ($manager_owner === '' || $manager_owner === 'admin') {
-                $user_manager_owners_local[$username] = 'admin';
+            if ($manager_owner === '' || $manager_owner === fm_admin_username()) {
+                $user_manager_owners_local[$username] = fm_admin_username();
             } elseif (in_array($manager_owner, $manager_users_local, true)) {
                 $user_manager_owners_local[$username] = $manager_owner;
             } else {
@@ -1502,6 +1547,17 @@ if (isset($_GET['admin_users_save'])) {
         $admin_users_respond_error(500, $write_ok['error']);
     }
 
+    if ($original_username !== $username) {
+        $related_state_ok = fm_admin_rename_related_state($original_username, $username);
+        fm_admin_write_audit_event('user_rename', $actor, $username, array('original_username' => $original_username));
+        if ($actor === $original_username) {
+            $_SESSION[FM_SESSION_ID]['logged'] = $username;
+        }
+        if (!$related_state_ok) {
+            $admin_users_respond_error(500, 'Login renamed, but personal settings or conversations could not be migrated. Check storage permissions.');
+        }
+    }
+
     $audit_meta = array(
         'mode' => $mode,
         'access_type_old' => $old_access_type,
@@ -1511,7 +1567,7 @@ if (isset($_GET['admin_users_save'])) {
         'password_changed' => $password_changed,
         'bulk_actions_enabled_old' => $old_bulk_actions_enabled,
         'bulk_actions_enabled_new' => $bulk_actions_enabled,
-        'manager_owner' => isset($user_manager_owners_local[$username]) ? (string) $user_manager_owners_local[$username] : 'admin',
+        'manager_owner' => isset($user_manager_owners_local[$username]) ? (string) $user_manager_owners_local[$username] : fm_admin_username(),
     );
     if ($note !== '') {
         $audit_meta['note'] = $note;
@@ -1635,7 +1691,7 @@ if (isset($_GET['admin_users_delete'])) {
         $deleted_access_type = 'read only';
     }
     $deleted_had_dirs = array_key_exists($username, $directories_users_local);
-    $deleted_manager_owner = isset($user_manager_owners_local[$username]) ? (string) $user_manager_owners_local[$username] : 'admin';
+    $deleted_manager_owner = isset($user_manager_owners_local[$username]) ? (string) $user_manager_owners_local[$username] : fm_admin_username();
 
     unset($auth_users_local[$username]);
     unset($directories_users_local[$username]);
@@ -1651,7 +1707,7 @@ if (isset($_GET['admin_users_delete'])) {
     if ($deleted_access_type === 'manager') {
         foreach ($user_manager_owners_local as $owned_user => $owner) {
             if ((string) $owner === $username) {
-                $user_manager_owners_local[$owned_user] = 'admin';
+                $user_manager_owners_local[$owned_user] = fm_admin_username();
             }
         }
     }
@@ -1726,7 +1782,7 @@ if (isset($_GET['admin_users_modal'])) {
     $modal_is_manager_actor = FM_MANAGER && !FM_IS_ADMIN;
     $modal_logged_user = isset($_SESSION[FM_SESSION_ID]['logged']) ? (string) $_SESSION[FM_SESSION_ID]['logged'] : '';
     $modal_manager_owner = $modal_mode === 'new'
-        ? ($modal_is_manager_actor ? $modal_logged_user : 'admin')
+        ? ($modal_is_manager_actor ? $modal_logged_user : fm_admin_username())
         : fm_admin_get_user_manager_owner($modal_username, $modal_user_manager_owners, $modal_manager_users);
 
     if ($modal_is_manager_actor && $modal_mode === 'edit') {
@@ -3011,7 +3067,7 @@ if (isset($_GET['settings']) && ((FM_USE_AUTH && !empty($_SESSION[FM_SESSION_ID]
                     <div class="mb-3 row">
                         <div class="col-sm-10">
                             <button type="submit" class="btn btn-success"> <i class="fa fa-check-circle"></i> <?php echo lng('Save'); ?></button>
-                            <?php if ($settings_current_user === 'admin'): ?>
+                            <?php if ($settings_current_user === fm_admin_username()): ?>
                             <button type="button" class="btn btn-outline-danger ms-2" onclick="return clear_fallback_log()"><i class="fa fa-trash"></i> Clear fallback log</button>
                             <?php endif; ?>
                         </div>
@@ -3450,11 +3506,55 @@ function verifyToken($token)
     return false;
 }
 
-/**
- * Parse textarea directories input into normalized list.
- * @param string $input
- * @return array
- */
+/** Keep personal preferences and conversations attached to a renamed login. */
+function fm_admin_rename_related_state($old_username, $new_username)
+{
+    global $cfg;
+    $settings = $cfg->loadUserSettings($old_username);
+    if (is_array($settings)) {
+        $old_data = $cfg->data;
+        $old_session_user = $_SESSION[FM_SESSION_ID]['logged'];
+        try {
+            $cfg->data = $settings;
+            $_SESSION[FM_SESSION_ID]['logged'] = $new_username;
+            if (!$cfg->save()) return false;
+        } finally {
+            $cfg->data = $old_data;
+            $_SESSION[FM_SESSION_ID]['logged'] = $old_session_user;
+        }
+    }
+    if (!is_file(fm_chat_db_path())) return true;
+    $db = fm_chat_get_db();
+    if (!$db || !$db->exec('BEGIN IMMEDIATE')) return false;
+    try {
+        foreach (array(
+            array('fm_chat_messages', 'sender'),
+            array('fm_chat_messages', 'recipient'),
+            array('fm_chat_read_state', 'username'),
+            array('fm_chat_read_state', 'peer'),
+        ) as $target) {
+            $stmt = $db->prepare('UPDATE OR REPLACE ' . $target[0] . ' SET ' . $target[1] . ' = :new WHERE ' . $target[1] . ' = :old');
+            if (!$stmt) throw new RuntimeException('Cannot prepare conversation rename');
+            $stmt->bindValue(':new', $new_username, SQLITE3_TEXT);
+            $stmt->bindValue(':old', $old_username, SQLITE3_TEXT);
+            if (!$stmt->execute()) throw new RuntimeException('Cannot rename conversation');
+        }
+        return $db->exec('COMMIT');
+    } catch (Throwable $error) {
+        $db->exec('ROLLBACK');
+        return false;
+    }
+}
+
+/** Return the persisted administrator login (legacy default: admin). */
+function fm_admin_username()
+{
+    global $admin_identity;
+    return isset($admin_identity['username']) && is_string($admin_identity['username']) && $admin_identity['username'] !== ''
+        ? $admin_identity['username'] : 'admin';
+}
+
+/** Parse textarea directories input into a normalized list. */
 function fm_admin_parse_directories_input($input)
 {
     $input = str_replace("\r", "\n", (string) $input);
@@ -3605,8 +3705,8 @@ function fm_admin_build_owner_map_plan(array $auth_users, array $manager_users, 
         $current_owner = isset($normalized_existing[$username]) ? (string) $normalized_existing[$username] : '-';
         $reason = '';
 
-        if ($username === 'admin' || isset($manager_set[$username])) {
-            $new_owner = 'admin';
+        if ($username === fm_admin_username() || isset($manager_set[$username])) {
+            $new_owner = fm_admin_username();
             $reason = 'forced_admin_or_manager';
         } elseif (!$rebuild && isset($normalized_existing[$username])) {
             $new_owner = $normalized_existing[$username];
@@ -3636,10 +3736,10 @@ function fm_admin_build_owner_map_plan(array $auth_users, array $manager_users, 
                 $new_owner = $matches[0];
                 $reason = 'inferred_single_manager_match';
             } elseif (count($matches) > 1) {
-                $new_owner = 'admin';
+                $new_owner = fm_admin_username();
                 $reason = 'fallback_ambiguous_managers:' . implode('|', $matches);
             } else {
-                $new_owner = 'admin';
+                $new_owner = fm_admin_username();
                 $reason = 'fallback_no_manager_match';
             }
         }
@@ -3707,12 +3807,12 @@ function fm_admin_parse_owner_map_submission($json, array $auth_users, array $ma
             return array('ok' => false, 'error' => 'Unknown user in owner map: ' . $username_raw);
         }
 
-        if ($username === 'admin' || isset($manager_set[$username])) {
-            $out[$username] = 'admin';
+        if ($username === fm_admin_username() || isset($manager_set[$username])) {
+            $out[$username] = fm_admin_username();
             continue;
         }
 
-        if ($owner !== 'admin' && !isset($manager_set[$owner])) {
+        if ($owner !== fm_admin_username() && !isset($manager_set[$owner])) {
             return array('ok' => false, 'error' => 'Invalid owner for ' . $username . '.');
         }
 
@@ -3743,7 +3843,7 @@ function fm_admin_normalize_user_manager_owners(array $owners, array $manager_us
             continue;
         }
 
-        if ($owner === 'admin' || isset($manager_set[$owner])) {
+        if ($owner === fm_admin_username() || isset($manager_set[$owner])) {
             $normalized[$username] = $owner;
         }
     }
@@ -3753,7 +3853,7 @@ function fm_admin_normalize_user_manager_owners(array $owners, array $manager_us
 
 /**
  * Resolve user's manager owner id.
- * Returns manager username or 'admin'.
+ * Returns the manager or administrator username.
  * @param string $username
  * @param array $owners
  * @param array $manager_users
@@ -3762,22 +3862,22 @@ function fm_admin_normalize_user_manager_owners(array $owners, array $manager_us
 function fm_admin_get_user_manager_owner($username, array $owners, array $manager_users)
 {
     $username = trim((string) $username);
-    if ($username === '' || $username === 'admin') {
-        return 'admin';
+    if ($username === '' || $username === fm_admin_username()) {
+        return fm_admin_username();
     }
 
     if (in_array($username, $manager_users, true)) {
-        return 'admin';
+        return fm_admin_username();
     }
 
     if (isset($owners[$username])) {
         $owner = trim((string) $owners[$username]);
-        if ($owner === 'admin' || in_array($owner, $manager_users, true)) {
+        if ($owner === fm_admin_username() || in_array($owner, $manager_users, true)) {
             return $owner;
         }
     }
 
-    return 'admin';
+    return fm_admin_username();
 }
 
 /**
@@ -3792,7 +3892,7 @@ function fm_admin_manager_can_manage_user($manager_username, $target_username, a
 {
     $manager_username = trim((string) $manager_username);
     $target_username = trim((string) $target_username);
-    if ($manager_username === '' || $target_username === '' || $target_username === 'admin') {
+    if ($manager_username === '' || $target_username === '' || $target_username === fm_admin_username()) {
         return false;
     }
 
@@ -3823,6 +3923,7 @@ function fm_admin_load_user_config_arrays($config_file)
     }
 
     $loader = static function ($__config_file) {
+        $admin_identity = array('username' => 'admin');
         $auth_users = array();
         $readonly_users = array();
         $upload_only_users = array();
@@ -3835,6 +3936,7 @@ function fm_admin_load_user_config_arrays($config_file)
         $welcome_message_shown_users = array();
         include $__config_file;
         return array(
+            'admin_identity' => $admin_identity,
             'auth_users' => is_array($auth_users) ? $auth_users : array(),
             'readonly_users' => is_array($readonly_users) ? $readonly_users : array(),
             'upload_only_users' => is_array($upload_only_users) ? $upload_only_users : array(),
@@ -3856,6 +3958,7 @@ function fm_admin_load_user_config_arrays($config_file)
         $runtime_data = fm_config_store_load_scope('runtime_config', 'global');
         if (is_array($runtime_data) && !empty($runtime_data)) {
             $array_keys = array(
+                'admin_identity',
                 'auth_users',
                 'readonly_users',
                 'upload_only_users',
@@ -3960,8 +4063,8 @@ function fm_admin_replace_config_array_assignment($content, $var_name, $new_code
 {
     $quoted_name = preg_quote((string) $var_name, '/');
     $patterns = array(
-        '/\$' . $quoted_name . '\s*=\s*array\s*\((?:.|[\r\n])*?\)\s*;/U',
-        '/\$' . $quoted_name . '\s*=\s*\[(?:.|[\r\n])*?\]\s*;/U',
+        '/\$' . $quoted_name . '\s*=\s*array\s*\((?:.|[\r\n])*?\)\s*;/',
+        '/\$' . $quoted_name . '\s*=\s*\[(?:.|[\r\n])*?\]\s*;/',
     );
 
     foreach ($patterns as $pattern) {
@@ -4015,6 +4118,7 @@ function fm_admin_persist_user_config_arrays($config_file, array $auth_users, ar
 
     $config_dir = dirname($config_file);
     $replacements = array(
+        'admin_identity' => fm_admin_export_assoc_array_code('admin_identity', isset($GLOBALS['admin_identity']) ? $GLOBALS['admin_identity'] : array('username' => 'admin'), $config_dir),
         'auth_users' => fm_admin_export_assoc_array_code('auth_users', $auth_users, $config_dir),
         'readonly_users' => fm_admin_export_list_array_code('readonly_users', $readonly_users),
         'upload_only_users' => fm_admin_export_list_array_code('upload_only_users', $upload_only_users),
@@ -4766,7 +4870,7 @@ function fm_chat_get_visible_peers($current_user, array $auth_users, array $dire
     $manager_users = array_values(array_unique(array_filter(array_map('strval', $manager_users), 'strlen')));
     $user_manager_owners = fm_admin_normalize_user_manager_owners($user_manager_owners, $manager_users, $auth_users);
 
-    if ($current_user === 'admin') {
+    if ($current_user === fm_admin_username()) {
         $all_peers = array_values(array_diff(array_keys($auth_users), array($current_user)));
         sort($all_peers, SORT_NATURAL | SORT_FLAG_CASE);
         return $all_peers;
@@ -5741,7 +5845,7 @@ function fm_maybe_issue_first_login_welcome($username)
     global $auth_users;
 
     $username = trim((string) $username);
-    if ($username === '' || $username === 'admin' || !isset($auth_users[$username])) {
+    if ($username === '' || $username === fm_admin_username() || !isset($auth_users[$username])) {
         return '';
     }
 
@@ -7147,7 +7251,7 @@ function fm_search_scope_key()
     }
 
     $allowedScope = empty($normalizedAllowed) ? '*' : implode('|', $normalizedAllowed);
-    return hash('sha256', 'root=' . $normalizedRoot . ';allow=' . $allowedScope);
+    return hash('sha256', 'v2;root=' . $normalizedRoot . ';allow=' . $allowedScope);
 }
 
 /**
@@ -7369,6 +7473,19 @@ function fm_search_index_get_db()
     return $db;
 }
 
+/** Invalidate other users' cached scopes after a shared filesystem change. */
+function fm_search_index_invalidate_other_scopes($db, $scope)
+{
+    $stmt = $db->prepare('UPDATE fm_file_index_meta SET is_dirty = 1,
+        last_mutation_at = :now, updated_at = :now,
+        folder_tree_revision = COALESCE(folder_tree_revision, 0) + 1
+        WHERE scope_key <> :scope');
+    if (!$stmt) return false;
+    $stmt->bindValue(':now', time(), SQLITE3_INTEGER);
+    $stmt->bindValue(':scope', (string) $scope, SQLITE3_TEXT);
+    return (bool) $stmt->execute();
+}
+
 /**
  * Mark current scope index as stale after filesystem mutation.
  * @param string $reason
@@ -7400,6 +7517,7 @@ function fm_search_index_mark_dirty($reason = 'mutation', $path = '')
         $stmt->execute();
     }
 
+    fm_search_index_invalidate_other_scopes($db, $scope);
     $GLOBALS['fm_search_index_request_dirty'] = true;
 
     fm_search_log_event('search_index_mark_dirty', array(
@@ -7702,6 +7820,7 @@ function fm_search_index_remove_path($absolutePath, $reason = '')
         'ok' => $ok ? 1 : 0,
         'had_dir' => $hadDir ? 1 : 0,
     ));
+    if ($ok) fm_search_index_invalidate_other_scopes($db, $scope);
     return $ok;
 }
 
@@ -7755,6 +7874,7 @@ function fm_search_index_sync_path($absolutePath, $reason = '')
         'ok' => $ok ? 1 : 0,
     ));
 
+    if ($ok) fm_search_index_invalidate_other_scopes($db, $scope);
     return $ok;
 }
 
@@ -7855,6 +7975,7 @@ function fm_search_index_sync_subtree($absolutePath, $reason = '')
         'ok' => $ok ? 1 : 0,
     ));
 
+    if ($ok) fm_search_index_invalidate_other_scopes($db, $scope);
     return $ok;
 }
 

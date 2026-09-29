@@ -214,6 +214,7 @@ function fm_config_store_runtime_keys()
         'readonly_users',
         'upload_only_users',
         'manager_users',
+        'admin_identity',
         'bulk_actions_disabled_users',
         'user_welcome_messages',
         'welcome_message_shown_users',

@@ -399,7 +399,7 @@ class SecurityTest extends BaseTestCase
     {
         $username = 'user123_abc';
         
-        $this->assertMatchesRegularExpression('/^[a-zA-Z0-9_.-]{3,32}$/', $username);
+        $this->assertMatchesRegularExpression('/^[a-zA-Z0-9_.-]{2,64}$/', $username);
     }
 
     /**
@@ -408,9 +408,9 @@ class SecurityTest extends BaseTestCase
      */
     public function testValidateUsernameRejectsShortName()
     {
-        $username = 'ab';
+        $username = 'a';
         
-        $this->assertDoesNotMatchRegularExpression('/^[a-zA-Z0-9_.-]{3,32}$/', $username);
+        $this->assertDoesNotMatchRegularExpression('/^[a-zA-Z0-9_.-]{2,64}$/', $username);
     }
 
     /**
@@ -429,7 +429,7 @@ class SecurityTest extends BaseTestCase
         
         foreach ($usernames as $username) {
             $this->assertDoesNotMatchRegularExpression(
-                '/^[a-zA-Z0-9_.-]{3,32}$/',
+                '/^[a-zA-Z0-9_.-]{2,64}$/',
                 $username,
                 "Should reject: $username"
             );
