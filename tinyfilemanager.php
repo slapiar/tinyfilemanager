@@ -2223,43 +2223,28 @@ $files = $listing_context['files'];
 $current_path = $listing_context['current_path'];
 
 if (isset($_GET['assistant_browser'])) {
+    if (!FM_USE_AUTH || empty($_SESSION[FM_SESSION_ID]['logged'])) {
+        http_response_code(403);
+        exit('Prihlásenie je povinné.');
+    }
+    if ($_SERVER['REQUEST_METHOD'] === 'POST' && !verifyToken((string) ($_POST['token'] ?? ''))) {
+        http_response_code(403);
+        exit('Neplatný token. Obnovte stránku.');
+    }
     fm_show_header();
     fm_show_nav_path(FM_PATH);
 
-    $assistant_config_file = __DIR__ . '/api.config.php';
-    $assistant_api_token = '';
-    $assistant_api_tokens = array();
-    $assistant_workspace_root = __DIR__ . '/Joyee';
-    if (is_readable($assistant_config_file)) {
-        require $assistant_config_file;
-        if (isset($api_tokens) && is_array($api_tokens)) {
-            $assistant_api_tokens = $api_tokens;
-        }
-        if (isset($assistant_root_path) && trim((string) $assistant_root_path) !== '') {
-            $assistant_workspace_root = (string) $assistant_root_path;
-        }
-    }
-
-    foreach ($assistant_api_tokens as $configured_token => $configured_token_config) {
-        if (is_string($configured_token) && trim($configured_token) !== '') {
-            $assistant_api_token = trim($configured_token);
-            break;
-        }
-    }
-
+    require_once __DIR__ . '/src/services/AssistantBrowserService.php';
+    $assistant_service = new TFM_AssistantBrowserService();
+    $assistant_workspace_root = FM_ROOT_PATH;
     $assistant_workspace_error = '';
-    if (!is_dir($assistant_workspace_root)) {
-        if (!@mkdir($assistant_workspace_root, 0775, true)) {
-            $assistant_workspace_error = 'AI workspace sa nepodarilo vytvoriť.';
-        }
-    }
 
     $assistant_workspace_real_root = realpath($assistant_workspace_root);
     if ($assistant_workspace_real_root === false || !is_dir($assistant_workspace_real_root)) {
         $assistant_workspace_error = $assistant_workspace_error !== '' ? $assistant_workspace_error : 'AI workspace root neexistuje.';
     }
 
-    $assistant_requested_path = isset($_GET['ajp']) ? (string) $_GET['ajp'] : '';
+    $assistant_requested_path = isset($_GET['ajp']) ? (string) $_GET['ajp'] : (FM_IS_ADMIN ? '' : fm_get_user_default_path());
     if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['assistant_path'])) {
         $assistant_requested_path = (string) $_POST['assistant_path'];
     }
@@ -2287,10 +2272,13 @@ if (isset($_GET['assistant_browser'])) {
         ? rtrim($assistant_workspace_real_root, DIRECTORY_SEPARATOR) . ($assistant_current_rel_path === '' ? '' : DIRECTORY_SEPARATOR . str_replace('/', DIRECTORY_SEPARATOR, $assistant_current_rel_path))
         : '';
 
-    if ($assistant_workspace_error === '' && ($assistant_workspace_real_root === false || !is_dir($assistant_current_abs_path))) {
-        $assistant_workspace_error = 'Požadovaný AI priečinok neexistuje.';
-        $assistant_current_rel_path = '';
-        $assistant_current_abs_path = $assistant_workspace_real_root !== false ? $assistant_workspace_real_root : '';
+    if ($assistant_workspace_error === '') {
+        try {
+            $assistant_current_abs_path = $assistant_service->path($assistant_current_rel_path, true);
+            if (!is_dir($assistant_current_abs_path)) throw new RuntimeException('Priečinok neexistuje.');
+        } catch (Throwable $error) {
+            $assistant_workspace_error = $error->getMessage();
+        }
     }
 
     $assistant_folder_items = array();
@@ -2305,6 +2293,9 @@ if (isset($_GET['assistant_browser'])) {
                     continue;
                 }
                 $assistant_item_abs = $assistant_current_abs_path . DIRECTORY_SEPARATOR . $assistant_item;
+                try {
+                    $assistant_service->path(trim($assistant_current_rel_path . '/' . $assistant_item, '/'), is_dir($assistant_item_abs));
+                } catch (Throwable $error) { continue; }
                 if (is_dir($assistant_item_abs)) {
                     $assistant_folder_items[] = $assistant_item;
                 } elseif (is_file($assistant_item_abs)) {
@@ -2406,198 +2397,36 @@ if (isset($_GET['assistant_browser'])) {
     }
 
     if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['assistant_run'])) {
-        if ($assistant_message === '') {
-            $assistant_error = 'Zadaj otázku pre asistenta.';
-        } elseif ($assistant_api_token === '') {
-            $assistant_error = 'API token pre interný request nie je nakonfigurovaný.';
-        } elseif ($assistant_workspace_error !== '') {
-            $assistant_error = $assistant_workspace_error;
-        } elseif (empty($assistant_selected_files)) {
-            $assistant_error = 'Vyber aspoň jeden súbor.';
-        } else {
-            $assistant_instruction = "Vytvor plan operacii pre vybrane subory. Odpovedz STRICTNE ako JSON objekt bez markdownu a bez dalsieho textu v tvare: {\"summary\":\"kratke zhrnutie\",\"operations\":[{\"action\":\"write|mkdir|delete|move|copy\",\"path\":\"relative/path\",\"content\":\"full file content\",\"from\":\"relative/from\",\"to\":\"relative/to\"}]}. Pouzi iba potrebne polia podla action. Ak nema byt ziadna zmena, vrat operations ako prazdne pole.";
-            $assistant_payload = json_encode(array(
-                'message' => $assistant_instruction . "\n\nUloha:\n" . $assistant_message,
-                'files' => $assistant_selected_files,
-            ), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
-
-            if ($assistant_payload === false) {
-                $assistant_error = 'Nepodarilo sa pripraviť požiadavku pre asistenta.';
-            } else {
-                $assistant_base_path = rtrim(str_replace('\\', '/', dirname(isset($_SERVER['SCRIPT_NAME']) ? $_SERVER['SCRIPT_NAME'] : '')), '/');
-                if ($assistant_base_path === '.' || $assistant_base_path === '/') {
-                    $assistant_base_path = '';
-                }
-                $assistant_api_url = ((isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https://' : 'http://') . $_SERVER['HTTP_HOST'] . $assistant_base_path . '/api.php?action=assistant';
-
-                if (function_exists('curl_init')) {
-                    $assistant_curl = curl_init($assistant_api_url);
-                    curl_setopt_array($assistant_curl, array(
-                        CURLOPT_RETURNTRANSFER => true,
-                        CURLOPT_POST => true,
-                        CURLOPT_POSTFIELDS => $assistant_payload,
-                        CURLOPT_HTTPHEADER => array(
-                            'Content-Type: application/json',
-                            'Accept: application/json',
-                            'Authorization: Bearer ' . $assistant_api_token,
-                        ),
-                        CURLOPT_CONNECTTIMEOUT => 20,
-                        CURLOPT_TIMEOUT => 120,
-                    ));
-                    $assistant_raw_response = curl_exec($assistant_curl);
-                    if ($assistant_raw_response === false) {
-                        $assistant_error = 'Assistant request failed: ' . curl_error($assistant_curl);
-                    } else {
-                        $assistant_response_status = (int) curl_getinfo($assistant_curl, CURLINFO_HTTP_CODE);
-                        $assistant_response_data = json_decode($assistant_raw_response, true);
-                        if ($assistant_response_status < 200 || $assistant_response_status >= 300) {
-                            $assistant_error = is_array($assistant_response_data) && isset($assistant_response_data['data']['error'])
-                                ? (string) $assistant_response_data['data']['error']
-                                : 'Assistant request failed.';
-                        } elseif (is_array($assistant_response_data) && isset($assistant_response_data['data']['reply'])) {
-                            $assistant_reply = (string) $assistant_response_data['data']['reply'];
-
-                            $assistant_candidate = trim($assistant_reply);
-                            if (preg_match('/```(?:json)?\s*(\{[\s\S]*\})\s*```/i', $assistant_candidate, $assistant_match)) {
-                                $assistant_candidate = trim($assistant_match[1]);
-                            }
-                            $assistant_plan_data = json_decode($assistant_candidate, true);
-                            $assistant_normalized_plan = $assistant_normalize_plan($assistant_plan_data);
-                            if (!is_array($assistant_plan_data) || !array_key_exists('operations', $assistant_plan_data) && !array_key_exists('edits', $assistant_plan_data)) {
-                                $assistant_error = 'Model nevratil validny plan zmien (JSON). Skus preformulovat poziadavku.';
-                            } else {
-                                $assistant_plan_payload = array(
-                                    'summary' => $assistant_normalized_plan['summary'],
-                                    'operations' => $assistant_normalized_plan['operations'],
-                                );
-                                $assistant_plan_json = json_encode($assistant_plan_payload, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_PRETTY_PRINT);
-                                $assistant_plan_summary = $assistant_normalized_plan['summary'];
-                                $assistant_plan_operations = $assistant_normalized_plan['operations'];
-                            }
-                        } else {
-                            $assistant_error = 'Assistant response is invalid.';
-                        }
-                    }
-                    curl_close($assistant_curl);
-                } else {
-                    $assistant_context = stream_context_create(array(
-                        'http' => array(
-                            'method' => 'POST',
-                            'header' => implode("\r\n", array(
-                                'Content-Type: application/json',
-                                'Accept: application/json',
-                                'Authorization: Bearer ' . $assistant_api_token,
-                            )),
-                            'content' => $assistant_payload,
-                            'timeout' => 120,
-                            'ignore_errors' => true,
-                        ),
-                    ));
-                    $assistant_raw_response = @file_get_contents($assistant_api_url, false, $assistant_context);
-                    $assistant_response_data = is_string($assistant_raw_response) ? json_decode($assistant_raw_response, true) : null;
-                    if (is_array($assistant_response_data) && isset($assistant_response_data['data']['reply'])) {
-                        $assistant_reply = (string) $assistant_response_data['data']['reply'];
-                        $assistant_candidate = trim($assistant_reply);
-                        if (preg_match('/```(?:json)?\s*(\{[\s\S]*\})\s*```/i', $assistant_candidate, $assistant_match)) {
-                            $assistant_candidate = trim($assistant_match[1]);
-                        }
-                        $assistant_plan_data = json_decode($assistant_candidate, true);
-                        $assistant_normalized_plan = $assistant_normalize_plan($assistant_plan_data);
-                        if (is_array($assistant_plan_data) && (array_key_exists('operations', $assistant_plan_data) || array_key_exists('edits', $assistant_plan_data))) {
-                            $assistant_plan_payload = array(
-                                'summary' => $assistant_normalized_plan['summary'],
-                                'operations' => $assistant_normalized_plan['operations'],
-                            );
-                            $assistant_plan_json = json_encode($assistant_plan_payload, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_PRETTY_PRINT);
-                            $assistant_plan_summary = $assistant_normalized_plan['summary'];
-                            $assistant_plan_operations = $assistant_normalized_plan['operations'];
-                        } else {
-                            $assistant_error = 'Model nevratil validny plan zmien (JSON). Skus preformulovat poziadavku.';
-                        }
-                    } else {
-                        $assistant_error = 'Assistant response is invalid.';
-                    }
-                }
-            }
-        }
+        try {
+            if ($assistant_workspace_error !== '') throw new RuntimeException($assistant_workspace_error);
+            if ($assistant_message === '' || empty($assistant_selected_files)) throw new RuntimeException('Zadajte úlohu a vyberte aspoň jeden súbor.');
+            $instruction = 'Vrat iba JSON: {"summary":"zhrnutie","operations":[{"action":"write|mkdir|delete|move|copy","path":"relativna/cesta","content":"obsah","from":"odkial","to":"kam"}]}. Pouzi iba potrebne polia. Cesty su relativne ku korenu spravcu; zachovaj predpony vybranych suborov. Ak nie su zmeny, operations je prazdne pole.';
+            $assistant_reply = $assistant_service->plan($instruction . "\n\n" . $assistant_message, $assistant_selected_files);
+            $candidate = trim($assistant_reply);
+            if (preg_match('/```(?:json)?\s*(\{[\s\S]*\})\s*```/i', $candidate, $match)) $candidate = $match[1];
+            $plan = json_decode($candidate, true);
+            if (!is_array($plan) || (!isset($plan['operations']) && !isset($plan['edits']))) throw new RuntimeException('AI nevrátila platný plán zmien.');
+            $plan = $assistant_normalize_plan($plan);
+            $assistant_plan_json = json_encode($plan, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+            $assistant_plan_summary = $plan['summary'];
+            $assistant_plan_operations = $plan['operations'];
+        } catch (Throwable $error) { $assistant_error = $error->getMessage(); }
     }
 
     if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['assistant_apply'])) {
-        if ($assistant_api_token === '') {
-            $assistant_error = 'API token pre interny zapis nie je nakonfigurovany.';
-        } elseif ($assistant_workspace_error !== '') {
-            $assistant_error = $assistant_workspace_error;
-        } elseif ($assistant_plan_json === '') {
-            $assistant_error = 'Najprv vytvor plan zmien.';
-        } else {
-            $assistant_normalized_plan = $assistant_normalize_plan(json_decode($assistant_plan_json, true));
-            $assistant_plan_operations = $assistant_normalized_plan['operations'];
-            if (empty($assistant_plan_operations)) {
-                $assistant_error = 'Plan zmien je neplatny.';
-            } else {
-                $assistant_apply_require_confirmation = !$assistant_session_auto_apply && $assistant_require_confirmation;
-                if ($assistant_apply_require_confirmation && empty($assistant_confirmed_operations)) {
-                    $assistant_error = 'Vyber aspon jednu operaciu na potvrdenie, alebo vypni potvrdenie pre session.';
-                }
-
-                $assistant_apply_payload = json_encode(array(
-                    'operations' => $assistant_plan_operations,
-                    'require_confirmation' => $assistant_apply_require_confirmation,
-                    'confirmed' => $assistant_confirmed_operations,
-                ), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
-                if ($assistant_apply_payload === false) {
-                    $assistant_error = 'Nepodarilo sa pripravit zapis zmien.';
-                } elseif ($assistant_error === '') {
-                    $assistant_base_path = rtrim(str_replace('\\', '/', dirname(isset($_SERVER['SCRIPT_NAME']) ? $_SERVER['SCRIPT_NAME'] : '')), '/');
-                    if ($assistant_base_path === '.' || $assistant_base_path === '/') {
-                        $assistant_base_path = '';
-                    }
-                    $assistant_apply_url = ((isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https://' : 'http://') . $_SERVER['HTTP_HOST'] . $assistant_base_path . '/api.php?action=assistant_apply';
-
-                    if (function_exists('curl_init')) {
-                        $assistant_apply_curl = curl_init($assistant_apply_url);
-                        curl_setopt_array($assistant_apply_curl, array(
-                            CURLOPT_RETURNTRANSFER => true,
-                            CURLOPT_POST => true,
-                            CURLOPT_POSTFIELDS => $assistant_apply_payload,
-                            CURLOPT_HTTPHEADER => array(
-                                'Content-Type: application/json',
-                                'Accept: application/json',
-                                'Authorization: Bearer ' . $assistant_api_token,
-                            ),
-                            CURLOPT_CONNECTTIMEOUT => 20,
-                            CURLOPT_TIMEOUT => 120,
-                        ));
-                        $assistant_apply_raw = curl_exec($assistant_apply_curl);
-                        if ($assistant_apply_raw === false) {
-                            $assistant_error = 'Apply request failed: ' . curl_error($assistant_apply_curl);
-                        } else {
-                            $assistant_apply_status = (int) curl_getinfo($assistant_apply_curl, CURLINFO_HTTP_CODE);
-                            $assistant_apply_data = json_decode($assistant_apply_raw, true);
-                            if ($assistant_apply_status < 200 || $assistant_apply_status >= 300) {
-                                $assistant_error = is_array($assistant_apply_data) && isset($assistant_apply_data['data']['error'])
-                                    ? (string) $assistant_apply_data['data']['error']
-                                    : 'Apply request failed.';
-                            } else {
-                                $assistant_apply_ok = 'Operacie boli uspesne aplikovane.';
-                                $assistant_plan_json = '';
-                                $assistant_plan_operations = array();
-                                $assistant_plan_summary = '';
-                            }
-                        }
-                        curl_close($assistant_apply_curl);
-                    } else {
-                        $assistant_error = 'Server nepodporuje cURL pre aplikovanie zmien.';
-                    }
-                }
-            }
-        }
+        try {
+            if ($assistant_workspace_error !== '') throw new RuntimeException($assistant_workspace_error);
+            if (empty($assistant_plan_operations)) throw new RuntimeException('Najprv vytvorte plán zmien.');
+            $require_confirmation = !$assistant_session_auto_apply && $assistant_require_confirmation;
+            if ($require_confirmation && empty($assistant_confirmed_operations)) throw new RuntimeException('Vyberte operácie na potvrdenie.');
+            $assistant_service->apply($assistant_plan_operations, $require_confirmation, $assistant_confirmed_operations);
+            $assistant_apply_ok = 'Operácie boli úspešne aplikované.';
+            $assistant_plan_json = '';
+            $assistant_plan_operations = array();
+            $assistant_plan_summary = '';
+        } catch (Throwable $error) { $assistant_error = $error->getMessage(); }
     }
 
-    $assistant_base_path = rtrim(str_replace('\\', '/', dirname(isset($_SERVER['SCRIPT_NAME']) ? $_SERVER['SCRIPT_NAME'] : '')), '/');
-    if ($assistant_base_path === '.' || $assistant_base_path === '/') {
-        $assistant_base_path = '';
-    }
     $assistant_current_url = '?p=' . urlencode(FM_PATH) . '&assistant_browser=1' . ($assistant_current_rel_path !== '' ? '&ajp=' . urlencode($assistant_current_rel_path) : '');
     ?>
     <style>
@@ -2617,7 +2446,7 @@ if (isset($_GET['assistant_browser'])) {
             <div class="d-flex flex-wrap justify-content-between align-items-start gap-3">
                 <div>
                     <h2 class="h4 mb-1">AI browser</h2>
-                    <div class="opacity-75">Vyber súbory, pošli prompt a prehľadávaj projekty v izolovanom pracovisku Joyee.</div>
+                    <div class="opacity-75">Vyber súbory zo svojich priečinkov a zadaj úlohu AI asistentovi.</div>
                 </div>
                 <div class="text-end">
                     <a class="btn btn-light btn-sm" href="<?php echo $assistant_current_url; ?>"><i class="fa fa-refresh"></i> Obnoviť</a>
@@ -9809,6 +9638,15 @@ function fm_download_file($fileLocation, $fileName, $chunkSize  = 1024)
                             <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                         </div>
                         <div class="modal-body">
+                            <?php if ((!FM_READONLY || FM_UPLOAD_ONLY) && (!defined('FM_CAN_WRITE_IN_PATH') || FM_CAN_WRITE_IN_PATH)): ?>
+                            <div class="d-flex flex-wrap gap-2 mb-3">
+                                <button type="button" class="btn btn-outline-primary" id="fm-camera-button"><i class="fa fa-camera" aria-hidden="true"></i> Odfotiť a nahrať</button>
+                                <a class="btn btn-outline-primary" href="?p=<?php echo urlencode(FM_PATH); ?>&amp;upload"><i class="fa fa-cloud-upload" aria-hidden="true"></i> Nahrať zo zariadenia</a>
+                                <input type="file" id="fm-camera-input" accept="image/*" capture="environment" class="d-none" aria-label="Fotografia z kamery">
+                            </div>
+                            <div id="fm-camera-status" class="small mb-3" role="status" aria-live="polite"></div>
+                            <hr>
+                            <?php endif; ?>
                             <p><label for="newfile"><?php echo lng('ItemType') ?> </label></p>
                             <div class="form-check form-check-inline">
                                 <input class="form-check-input" type="radio" name="newfile" id="customRadioInline1" name="newfile" value="file">

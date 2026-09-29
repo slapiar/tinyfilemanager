@@ -1,4 +1,6 @@
 """Isolated HTTP regression tests. Run: PHP_BIN=php python3 tests/regression/admin-permissions.py"""
+import http.server
+import threading
 import http.cookiejar
 import hashlib
 import sqlite3
@@ -43,6 +45,18 @@ $use_auth = true;
 ''')
     (root / '.fm_usercfg').mkdir()
     (root / '.fm_usercfg' / (hashlib.md5(b'admin').hexdigest() + '.json')).write_text(json.dumps({'theme': 'light', 'list_density': 'normal', 'lang': 'sk'}))
+    provider_requests = []
+    class Provider(http.server.BaseHTTPRequestHandler):
+        def do_POST(self):
+            provider_requests.append(json.loads(self.rfile.read(int(self.headers['Content-Length']))))
+            payload = json.dumps({'choices': [{'message': {'content': '{"summary":"Checked","operations":[]}'}}]}).encode()
+            self.send_response(200)
+            self.end_headers()
+            self.wfile.write(payload)
+        def log_message(self, *args): pass
+    provider = http.server.ThreadingHTTPServer(('127.0.0.1', 0), Provider)
+    threading.Thread(target=provider.serve_forever, daemon=True).start()
+    (root / 'api.config.php').write_text("<?php $assistant_enabled=true; $assistant_openai_api_key='test-only'; $assistant_openai_base_url='http://127.0.0.1:" + str(provider.server_port) + "'; $assistant_root_path=__DIR__.'/Joyee';")
     # This fixture exists only in the temporary copy served on loopback.
     (root / 'fixture.php').write_text('''<?php
 session_name('filemanager'); session_start();
@@ -102,6 +116,31 @@ echo 'ready';
         status, body = request('reader', 'p=other')
         assert 'value="manager">manager (manažér)</option>' in body
         assert 'data-bs-theme="dark"' in body and 'fm-density-compact' in body
+        # AI starts in the assigned home, with the same scope at execution time.
+        status, body = request('reader', 'p=other&assistant_browser=1')
+        assert 'name="assistant_path" value="other"' in body, body[-600:]
+        assert 'value="other/evidence.txt"' in body
+        assert not (root / 'Joyee').exists()
+        status, body = request('reader', 'p=other&assistant_browser=1&ajp=manager')
+        assert 'nie je pridelený' in body
+        ai = {'token': 'test-csrf-token', 'assistant_run': '1', 'assistant_message': 'Inspect', 'assistant_files[]': 'other/evidence.txt'}
+        status, body = request('reader', 'p=other&assistant_browser=1', ai)
+        assert 'Checked' in body and len(provider_requests) == 1, body[-800:]
+        ai['assistant_files[]'] = 'manager/secret.txt'
+        (root / 'data/manager/secret.txt').write_text('private')
+        status, body = request('reader', 'p=other&assistant_browser=1', ai)
+        assert len(provider_requests) == 1
+        ai['token'] = 'wrong'
+        status, body = request('reader', 'p=other&assistant_browser=1', ai)
+        assert status == 403
+        ai = {'token': 'test-csrf-token', 'assistant_apply': '1', 'assistant_require_confirmation': '0', 'assistant_plan_json': json.dumps({'operations': [{'action':'write','path':'other/blocked.txt','content':'blocked'}]})}
+        request('reader', 'p=other&assistant_browser=1', ai)
+        assert not (root / 'data/other/blocked.txt').exists()
+        request('admin', 'p=other&assistant_browser=1', ai)
+        assert (root / 'data/other/blocked.txt').read_text() == 'blocked'
+        status, body = request('admin', 'p=other')
+        assert 'capture="environment"' in body and 'Odfotiť a nahrať' in body and 'Nahrať zo zariadenia' in body
+        assert body.count('fa-cloud-upload') >= 2
         status, body = request('reader', 'p=other&chat_action=fetch&with=manager')
         assert status == 200 and json.loads(body)['ok'], body
         status, body = request('manager', 'p=manager&chat_action=fetch&with=reader')
@@ -169,6 +208,21 @@ echo 'ready';
         assert chat.execute("SELECT sender FROM fm_chat_messages WHERE message='Keep this conversation'").fetchone()[0] == 'mg'
         # Two separate user scopes: a manager mutation must invalidate admin's tree.
         request('mg', 'enable_writes=1', fixture=True)
+        # Reject a mixed AI plan before its first write; foreign and symlink targets stay untouched.
+        operations = [{'action':'write','path':'manager/first.txt','content':'ok'}, {'action':'write','path':'other/foreign.txt','content':'no'}]
+        ai = {'token':'test-csrf-token','assistant_apply':'1','assistant_require_confirmation':'0','assistant_plan_json':json.dumps({'operations':operations})}
+        request('mg','p=manager&assistant_browser=1',ai)
+        assert not (root / 'data/manager/first.txt').exists()
+        assert not (root / 'data/other/foreign.txt').exists()
+        (root / 'data/manager/link').symlink_to(root / 'data/other', target_is_directory=True)
+        operations[1]['path'] = 'manager/link/foreign.txt'
+        ai['assistant_plan_json'] = json.dumps({'operations':operations})
+        request('mg','p=manager&assistant_browser=1',ai)
+        assert not (root / 'data/manager/first.txt').exists()
+        (root / 'data/manager/link').unlink()
+        ai['assistant_plan_json'] = json.dumps({'operations':operations[:1]})
+        request('mg','p=manager&assistant_browser=1',ai)
+        assert (root / 'data/manager/first.txt').read_text() == 'ok'
         status, body = request('admin', 'p=manager')
         assert 'new-shared-folder' not in body
         status, body = request('mg', 'p=manager', dict(token='test-csrf-token',newfilename='new-shared-folder',newfile='folder'))
@@ -191,6 +245,8 @@ echo 'ready';
         print((root / 'server.log').read_text()[-4500:])
         raise
     finally:
+        provider.shutdown()
+        provider.server_close()
         server.terminate()
         server.wait(timeout=5)
         log.close()
