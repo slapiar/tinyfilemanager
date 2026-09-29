@@ -14,6 +14,12 @@ $CONFIG = '{"lang":"sk","error_reporting":false,"show_hidden":false,"hide_Cols":
 // --- POUŽÍVATELIA A HESLÁ ---
 // Formát: 'meno' => 'bcrypt_hash_hesla'
 $auth_users = array(
+    'KE' => '$2y$12$Ar2WZ5UMFn6hFU.wPmdrNeurbh70La.Rh0Z5dePPkuXMAOE3ZroA2',
+    'Maluzina' => '$2y$12$b5b0HzOeY.uRHN5ZMyytBOYKGajPQ2mvTWw3cP045CB1PkMcnyO4e',
+    'NR' => '$2y$12$EFqgZfk55H3kiw7ZnkPxXu4rGqB9JvxgCXvl.ePc8V1dooItJNLSe',
+    'PD' => '$2y$12$DYrcjD8t.oDzHxtORIuTv.ZUcLj4LNkLnxWyjJZov/vVShI9Lyzwy',
+    'ZA' => '$2y$12$POwPx4XzCsSxuSiTZVyaD.0lYE4P1Ww/jN1agf3I7WfBlC.VYQYm6',
+    'ZV' => '$2y$12$KfbQkOsFEL9u4/taIgPCR.333CnvJ6BBFjgxknc1XSBkmcNQbjNgi',
     'admin' => '$2y$10$MDkNAqrsNXnWDpWSUe9po.luFRyHwfktNXEcX0/cqKsnq9NJqPmIG',
     'bilek' => '$2y$10$wC5xZkDTUuwHaaLOqe7pFufzs263KpAXb6CMDjUChfEetUHOOsz5i',
     'chachula' => '$2y$10$aXrwD.R2BgClZAuGDkiwc.twb2UKgPWh7WxYVqdG9eYwP7C1cUUfW',
@@ -48,6 +54,12 @@ $manager_users = array(
 );
 
 $directories_users = array(
+    'KE' => __DIR__ . '/Mirko/Nemocnica Prešov/',
+    'Maluzina' => __DIR__ . '/Mirko/Nemocnica Prešov/',
+    'NR' => __DIR__ . '/Mirko/Nemocnica Prešov/',
+    'PD' => __DIR__ . '/Mirko/Nemocnica Prešov/',
+    'ZA' => __DIR__ . '/Mirko/Nemocnica Prešov/',
+    'ZV' => __DIR__ . '/Mirko/Nemocnica Prešov/',
     'admin' => __DIR__ . '/Mirko/',
     'bilek' => __DIR__ . '/Mirko/',
     'chachula' => __DIR__ . '/Mirko/Nemocnica PP',
@@ -67,20 +79,48 @@ $directories_users = array(
 );
 
 $user_manager_owners = array(
+    'KE' => 'rehak',
+    'Maluzina' => 'rehak',
+    'NR' => 'rehak',
+    'PD' => 'rehak',
+    'ZA' => 'rehak',
+    'ZV' => 'rehak',
     'admin' => 'admin',
     'bilek' => 'admin',
-    'chachula' => 'admin',
-    'fero' => 'admin',
+    'chachula' => 'bilek',
+    'fero' => 'rehak',
     'joyee' => 'admin',
-    'kicin' => 'admin',
-    'kristian' => 'admin',
-    'marian' => 'admin',
+    'kicin' => 'bilek',
+    'kristian' => 'rehak',
+    'marian' => 'rehak',
     'rehak' => 'admin',
-    'sano' => 'admin',
+    'sano' => 'rehak',
     'supplier1' => 'admin',
     'supplier2' => 'admin',
     'znava' => 'admin',
 );
 
 $user_notes = array(
+);
+
+$admin_identity = array(
+    'username' => 'admin',
+);
+
+$bulk_actions_disabled_users = array(
+);
+
+$user_welcome_messages = array(
+    'KE' => 'Ahoj {username}, vitaj v Správcovi súborov. Ak budeš potrebovať pomoc, ozvi sa prosím adminovi.',
+    'Maluzina' => 'Ahoj {username}, vitaj v Správcovi súborov. Ak budeš potrebovať pomoc, ozvi sa prosím adminovi.',
+    'NR' => 'Ahoj {username}, vitaj v Správcovi súborov. Ak budeš potrebovať pomoc, ozvi sa prosím adminovi.',
+    'PD' => 'Ahoj {username}, vitaj v Správcovi súborov. Ak budeš potrebovať pomoc, ozvi sa prosím adminovi.',
+    'ZA' => 'Ahoj {username}, vitaj v Správcovi súborov. Ak budeš potrebovať pomoc, ozvi sa prosím adminovi.',
+    'ZV' => 'Ahoj {username}, vitaj v Správcovi súborov. Ak budeš potrebovať pomoc, ozvi sa prosím adminovi.',
+);
+
+$welcome_message_shown_users = array(
+    'KE',
+    'PD',
+    'ZA',
 );
