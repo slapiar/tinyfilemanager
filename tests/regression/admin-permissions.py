@@ -46,11 +46,15 @@ $use_auth = true;
     (root / '.fm_usercfg').mkdir()
     (root / '.fm_usercfg' / (hashlib.md5(b'admin').hexdigest() + '.json')).write_text(json.dumps({'theme': 'light', 'list_density': 'normal', 'lang': 'sk'}))
     provider_requests = []
+    provider_status = 200
+    provider_error = {}
     class Provider(http.server.BaseHTTPRequestHandler):
         def do_POST(self):
             provider_requests.append(json.loads(self.rfile.read(int(self.headers['Content-Length']))))
             payload = json.dumps({'choices': [{'message': {'content': '{"summary":"Checked","operations":[]}'}}]}).encode()
-            self.send_response(200)
+            if provider_status != 200:
+                payload = json.dumps({'error': provider_error}).encode()
+            self.send_response(provider_status)
             self.end_headers()
             self.wfile.write(payload)
         def log_message(self, *args): pass
@@ -126,6 +130,33 @@ echo 'ready';
         ai = {'token': 'test-csrf-token', 'assistant_run': '1', 'assistant_message': 'Inspect', 'assistant_files[]': 'other/evidence.txt'}
         status, body = request('reader', 'p=other&assistant_browser=1', ai)
         assert 'Checked' in body and len(provider_requests) == 1, body[-800:]
+        # Provider diagnostics must distinguish quota from rate limits and never echo secrets.
+        for provider_status, provider_error, expected in [
+            (401, {'code': 'invalid_api_key'}, 'API odmietlo overenie'),
+            (429, {'type': 'insufficient_quota'}, 'nemá dostupnú kvótu'),
+            (429, {'code': 'rate_limit_exceeded'}, 'rýchlostný limit'),
+            (404, {'code': 'model_not_found'}, 'model neexistuje'),
+            (400, {'code': 'unsupported_value', 'param': 'temperature'}, 'parameter: temperature'),
+            (503, {}, 'dočasnú serverovú chybu'),
+        ]:
+            provider_error['message'] = 'SECRET-KEY-DO-NOT-DISPLAY'
+            status, body = request('reader', 'p=other&assistant_browser=1', ai)
+            assert expected in body and ('HTTP ' + str(provider_status)) in body
+            assert 'SECRET-KEY-DO-NOT-DISPLAY' not in body
+        provider_status = 200
+        # Admin can inspect more than eight text files, arbitrary extensions and full contents.
+        selected = []
+        for index in range(9):
+            name = 'other/admin-' + str(index) + '.log'
+            (root / 'data' / name).write_text(('x' * 200010 if index == 0 else 'log') + 'END-OF-FILE')
+            selected.append(('assistant_files[]', name))
+        payload = [('token', 'test-csrf-token'), ('assistant_run', '1'), ('assistant_message', 'Inspect')] + selected
+        status, body = request('admin', 'p=other&assistant_browser=1', payload)
+        assert 'Checked' in body
+        context_text = provider_requests[-1]['messages'][-1]['content']
+        assert context_text.count('END-OF-FILE') == 9 and 'x' * 200010 in context_text
+        provider_requests.clear()
+        provider_requests.append({})
         ai['assistant_files[]'] = 'manager/secret.txt'
         (root / 'data/manager/secret.txt').write_text('private')
         status, body = request('reader', 'p=other&assistant_browser=1', ai)

@@ -67,8 +67,8 @@ class TFM_AssistantBrowserService
             throw new RuntimeException('AI asistent zatiaľ nie je nakonfigurovaný.');
         }
         foreach ($files as $file) $this->path($file);
-        $context = api_assistant_collect_files($this->root, $files, $c['assistant_max_files'] ?? 8, $c['assistant_max_file_bytes'] ?? 200000,
-            $c['assistant_allowed_extensions'] ?? array('php','md','txt','json','js','css','html','xml','yml','yaml','ini','sh','sql'));
+        $context = api_assistant_collect_files($this->root, $files, FM_IS_ADMIN ? 0 : ($c['assistant_max_files'] ?? 8), FM_IS_ADMIN ? 0 : ($c['assistant_max_file_bytes'] ?? 200000),
+            FM_IS_ADMIN ? array() : ($c['assistant_allowed_extensions'] ?? array('php','md','txt','json','js','css','html','xml','yml','yaml','ini','sh','sql')));
         $response = api_http_post_json(rtrim($c['assistant_openai_base_url'] ?? 'https://api.openai.com/v1', '/') . '/chat/completions', array(
             'model' => $c['assistant_openai_model'] ?? 'gpt-4o-mini',
             'temperature' => $c['assistant_openai_temperature'] ?? 0.2,
@@ -78,11 +78,43 @@ class TFM_AssistantBrowserService
                 array('role' => 'user', 'content' => $message . "\n\nProject file context:\n" . $context['context']),
             ),
         ), array('Authorization: Bearer ' . $c['assistant_openai_api_key']), 60);
-        if ($response['status'] < 200 || $response['status'] >= 300) throw new RuntimeException('AI služba požiadavku nespracovala.');
+        if ($response['status'] < 200 || $response['status'] >= 300) throw new RuntimeException($this->providerError($response));
         $data = json_decode($response['body'], true);
         $reply = $data['choices'][0]['message']['content'] ?? '';
         if (!is_string($reply) || trim($reply) === '') throw new RuntimeException('AI služba vrátila prázdnu odpoveď.');
         return $reply;
+    }
+
+    private function providerError(array $response)
+    {
+        $status = (int) $response['status'];
+        if ($status === 0) return 'AI API: server nedostal HTTP odpoveď. Skontrolujte odchádzajúce HTTPS spojenie, DNS, TLS a časový limit.';
+        $body = json_decode($response['body'], true);
+        $error = isset($body['error']) && is_array($body['error']) ? $body['error'] : array();
+        $code = isset($error['code']) && is_string($error['code']) ? $error['code'] : '';
+        $type = isset($error['type']) && is_string($error['type']) ? $error['type'] : '';
+        $messages = array(
+            400 => 'API odmietlo formát alebo parametre požiadavky. Skontrolujte kompatibilitu nastaveného modelu s Chat Completions.',
+            401 => 'API odmietlo overenie. Skontrolujte platnosť API kľúča v serverovom api.config.php.',
+            403 => 'API zamietlo prístup. Skontrolujte oprávnenia projektu, kľúča a dostupnosť služby.',
+            404 => 'Model alebo API endpoint nie je dostupný. Skontrolujte model a základnú URL v api.config.php.',
+            429 => 'API obmedzilo požiadavku. Môže ísť o rýchlostný limit alebo limit účtu.',
+        );
+        $message = $messages[$status] ?? ($status >= 500 ? 'AI služba má dočasnú serverovú chybu. Skúste požiadavku neskôr.' : 'API požiadavku odmietlo.');
+        if ($code === 'insufficient_quota' || $type === 'insufficient_quota') {
+            $message = 'API účet nemá dostupnú kvótu. Skontrolujte kredit a limity API projektu.';
+        } elseif ($code === 'rate_limit_exceeded' || $type === 'rate_limit_error') {
+            $message = 'Prekročený rýchlostný limit API. Počkajte a zopakujte požiadavku.';
+        } elseif ($code === 'model_not_found') {
+            $message = 'Nastavený model neexistuje alebo k nemu API projekt nemá prístup.';
+        }
+        // Never display the provider message: it may echo credentials or file content.
+        $safeCodes = array('invalid_api_key', 'insufficient_quota', 'rate_limit_exceeded', 'slow_down', 'model_not_found', 'unsupported_parameter', 'unsupported_value', 'context_length_exceeded', 'invalid_request_error');
+        $detail = in_array($code, $safeCodes, true) ? '; ' . $code : '';
+        if (isset($error['param']) && in_array($error['param'], array('temperature', 'model', 'messages', 'max_tokens', 'max_completion_tokens'), true)) {
+            $detail .= '; parameter: ' . $error['param'];
+        }
+        return 'AI API (HTTP ' . $status . $detail . '): ' . $message;
     }
 
     public function apply(array $operations, $requireConfirmation, array $confirmed)
@@ -101,7 +133,7 @@ class TFM_AssistantBrowserService
                 if ($target === $this->root) throw new RuntimeException('Operácia nad koreňovým priečinkom nie je povolená.');
                 $this->inspectTree($target);
                 if ($action === 'write' || ($key === 'to' && !is_dir($this->path($operation['from'])))) {
-                    if (FM_FILE_EXTENSION && !in_array(strtolower(pathinfo($target, PATHINFO_EXTENSION)), array_map('trim', explode(',', strtolower(FM_FILE_EXTENSION))), true)) {
+                    if (!FM_IS_ADMIN && FM_FILE_EXTENSION && !in_array(strtolower(pathinfo($target, PATHINFO_EXTENSION)), array_map('trim', explode(',', strtolower(FM_FILE_EXTENSION))), true)) {
                         throw new RuntimeException('Nepovolená prípona súboru.');
                     }
                 }
