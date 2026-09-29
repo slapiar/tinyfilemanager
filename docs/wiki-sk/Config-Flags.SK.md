@@ -1,26 +1,36 @@
-# Konfiguračné prepínače (Config Flags)
+# Konfigurácia a prevádzkový stav
 
-Prehľad najdôležitejších konfiguračných premenných:
+Aktualizované pre 3.3.11. Hodnoty závisia od konkrétnej inštalácie; ukážky v repozitári nie sú náhradou jej konfigurácie.
 
-- `$root_path` - predvolene `$_SERVER['DOCUMENT_ROOT']`
-- `$root_url` - predvolene `'http(s)://site.domain/'`
-- `$http_host` - predvolene `$_SERVER['HTTP_HOST']`
-- `$global_readonly` - predvolene `false`; globálny režim iba na čítanie, aj keď nepoužívaš autentifikáciu
-- `$iconv_input_encoding` - predvolene `'CP1251'`
-- `$use_highlightjs` - predvolene `true`; zapína/vypína zvýraznenie kódu
-- `$highlightjs_style` - predvolene `'vs'`
-- `$datetime_format` - predvolene `'m/d/Y g:i A'`
-- `$allowed_upload_extensions` - predvolene prázdne; povolené prípony pre nahrávanie, napr. `'jpg,png,pdf,gif,html,css,js'`
-- `$allowed_file_extensions` - predvolene prázdne; povolené prípony pri vytváraní a premenovaní súborov, napr. `'html,css,js'`
-- `$exclude_items` - predvolene prázdne; súbory a priečinky, ktoré sa nezobrazia vo výpise
-- `$edit_files` - predvolene `true`; zapína editor ace.js (https://ace.c9.io/) na stránke zobrazenia
-- `$sticky_navbar` - predvolene `true`; zapína/vypína fixný horný panel
-- `$online_viewer` - predvolene `'google'`; dostupné voľby sú `'google'`, `'microsoft'` alebo `false`
-- `$favicon_path` - predvolene prázdne; môže byť úplná URL na PNG alebo cesta od document root
-- `MAX_UPLOAD_SIZE` - predvolene `5GB`
-- `$ip_ruleset` - predvolene `OFF`
-- `$state_storage_path` - predvolene vnútorný `.fm_usercfg`; odporúčané nastaviť na perzistentnú cestu mimo release balíka (napr. `uploads/.tfm-state`), aby chat/online/audit/metadata prežili deploy
+## Pracovný priestor a účty
 
-## Poznámka
+- `$root_path`: koreň spravovaného úložiska.
+- `$root_url`: URL pre súbory, ak sú dostupné cez web.
+- `$use_auth`, `$auth_users`: prihlasovanie a účty.
+- `$directories_users`: pridelené adresáre.
+- `$manager_users`, `$readonly_users`, `$upload_only_users`: role.
+- `$user_manager_owners`: priamo priradený manažér používateľa.
+- `$bulk_actions_disabled_users`: vypnutie hromadných akcií pre vybrané účty; admin má výnimku.
+- `$global_readonly`: režim iba na čítanie; v tomto forku neobmedzuje superadministrátora.
 
-V pôvodnej wiki je položka `$allowed_upload_extensions` uvedená dvakrát pre dva rôzne účely. Pri konfigurácii skontroluj aktuálne správanie vo verzii, ktorú nasadzuješ.
+## Súbory a zobrazenie
+
+`$allowed_upload_extensions` riadi prípony uploadu a `$allowed_file_extensions` vytváranie/premenovanie. Admin má z týchto aplikačných filtrov výnimku. `$exclude_items` a voľba skrytých položiek ovplyvňujú výpis. Nastavenie prípon nie je zmenou systémových práv.
+
+Téma a hustota sa ukladajú ako osobné nastavenia. Predvolené sú dark/compact. Ultra je samostatná dočasná voľba v prehliadači. Editor a online náhľady ovplyvňujú aj `$edit_files`, `$use_highlightjs` a `$online_viewer`.
+
+## Ukladanie
+
+`$state_storage_path` nastavuje perzistentný prevádzkový adresár. Bez neho sa používa `.fm_usercfg`. V tomto priestore sú okrem iného `config.sqlite`, `chat.sqlite`, `owner-meta.sqlite` a `search-index.sqlite`. Nie všetky sú cache: chat a vlastníctvo sú nenahraditeľné iba opätovným skenovaním disku. Staršie JSON súbory sa môžu používať pri migrácii.
+
+Konfigurácia účtov a osobné nastavenia používajú aj úložisko `ConfigStore`; pri administrácii uprednostnite príslušné formuláre.
+
+## Index
+
+Platnosť indexu je v aktuálnej implementácii 60 sekúnd a je nastavená v kóde, nie samostatným prepínačom v profile. Nasledujúca požiadavka po expirácii vykoná obnovu. Živý zoznam priečinkov funguje aj bez dostupnej indexovej databázy; ostatné funkcie používajúce SQLite tým nezískavajú náhradné úložisko.
+
+## AI a integrácie
+
+`api.config.php` obsahuje napríklad `$assistant_enabled`, `$assistant_openai_api_key`, `$assistant_openai_model` a `$assistant_openai_base_url`. Skutočný kľúč patrí do serverovej konfigurácie. Nastavenie API neznamená, že je AI Browser sprístupnený ostatným rolám.
+
+[Začíname](?help_doc=wiki-get-started) · [Naše rozšírenia](?help_doc=wiki-our-extensions)

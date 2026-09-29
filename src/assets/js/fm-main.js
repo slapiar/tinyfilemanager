@@ -1,5 +1,4 @@
-// Patch: Načítanie vlastných CSS štýlov
-import './asset/css/custom.css';
+// Loaded as a classic browser script; stylesheets are loaded by the PHP layout.
   function readJsonConfig(id) {
     var el = document.getElementById(id);
     if (!el) {
@@ -566,6 +565,42 @@ import './asset/css/custom.css';
 
     serialized += (serialized ? '&' : '') + 'ajax=true';
     return serialized;
+  }
+
+  function initCameraCapture() {
+    var button = document.getElementById('fm-camera-button');
+    var input = document.getElementById('fm-camera-input');
+    var status = document.getElementById('fm-camera-status');
+    if (!button || !input || !status) return;
+    button.addEventListener('click', function () { input.click(); });
+    input.addEventListener('change', async function () {
+      var file = input.files && input.files[0];
+      if (!file) return;
+      button.disabled = true;
+      status.textContent = 'Nahrávam fotografiu…';
+      try {
+        var extension = (file.name.match(/\.([a-z0-9]+)$/i) || [null, 'jpg'])[1];
+        var filename = 'foto-' + Date.now() + '-' + Math.random().toString(36).slice(2, 8) + '.' + extension;
+        var data = new FormData();
+        data.append('file', file, filename);
+        data.append('token', window.csrf);
+        data.append('upload_dir', resolveCurrentPathFromLocation());
+        var url = new URL(window.location.href);
+        url.search = '';
+        url.searchParams.set('p', resolveCurrentPathFromLocation());
+        var response = await fetch(url.toString(), { method: 'POST', body: data, credentials: 'same-origin' });
+        var result = await response.json();
+        if (!response.ok || result.status !== 'success') throw new Error(result.info || 'Fotografiu sa nepodarilo nahrať.');
+        status.textContent = 'Fotografia bola uložená.';
+        emitFilesystemChanged({ reason: 'camera_upload' });
+        window.location.assign(url.toString());
+      } catch (error) {
+        status.textContent = error.message || 'Fotografiu sa nepodarilo nahrať.';
+      } finally {
+        button.disabled = false;
+        input.value = '';
+      }
+    });
   }
 
   function saveSettings(el) {
@@ -1269,6 +1304,7 @@ import './asset/css/custom.css';
   }
 
   $(document).ready(function () {
+    initCameraCapture();
     if (document.getElementById('js-fallback-log-stats')) {
       refreshFallbackLogStats();
       window.setInterval(refreshFallbackLogStats, 15000);
@@ -1323,6 +1359,7 @@ import './asset/css/custom.css';
 
         const btn = document.createElement('button');
         btn.id = 'ultra-density-btn';
+        btn.type = 'button';
         btn.className = 'btn btn-sm btn-outline-primary';
         btn.style.marginLeft = '8px';
         btn.innerHTML = '🗜 Ultra';

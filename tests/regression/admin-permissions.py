@@ -1,4 +1,6 @@
 """Isolated HTTP regression tests. Run: PHP_BIN=php python3 tests/regression/admin-permissions.py"""
+import http.server
+import threading
 import http.cookiejar
 import hashlib
 import sqlite3
@@ -23,6 +25,7 @@ with tempfile.TemporaryDirectory(prefix='tfm-admin-test-') as temporary:
         if source.name != 'config.php':
             shutil.copy(source, root / source.name)
     shutil.copytree(repo / 'src', root / 'src')
+    shutil.copytree(repo / 'docs', root / 'docs')
     shutil.copy(repo / 'translation.json', root / 'translation.json')
     (root / 'data/manager').mkdir(parents=True)
     (root / 'data/other').mkdir()
@@ -36,16 +39,37 @@ $manager_users = array('manager');
 $readonly_users = array('admin', 'reader');
 $upload_only_users = array('admin');
 $bulk_actions_disabled_users = array('admin');
-$directories_users = array('admin'=>'missing-directory', 'manager'=>'manager', 'reader'=>'manager');
+$directories_users = array('admin'=>'missing-directory', 'manager'=>'manager', 'reader'=>'other');
 $user_manager_owners = array('reader'=>'manager', 'manager'=>'admin');
 $global_readonly = true;
 $use_auth = true;
 ''')
+    (root / '.fm_usercfg').mkdir()
+    (root / '.fm_usercfg' / (hashlib.md5(b'admin').hexdigest() + '.json')).write_text(json.dumps({'theme': 'light', 'list_density': 'normal', 'lang': 'sk'}))
+    provider_requests = []
+    provider_status = 200
+    provider_error = {}
+    class Provider(http.server.BaseHTTPRequestHandler):
+        def do_POST(self):
+            provider_requests.append(json.loads(self.rfile.read(int(self.headers['Content-Length']))))
+            payload = json.dumps({'choices': [{'message': {'content': '{"summary":"Checked","operations":[]}'}}]}).encode()
+            if provider_status != 200:
+                payload = json.dumps({'error': provider_error}).encode()
+            self.send_response(provider_status)
+            self.end_headers()
+            self.wfile.write(payload)
+        def log_message(self, *args): pass
+    provider = http.server.ThreadingHTTPServer(('127.0.0.1', 0), Provider)
+    threading.Thread(target=provider.serve_forever, daemon=True).start()
+    (root / 'api.config.php').write_text("<?php $assistant_enabled=true; $assistant_openai_api_key='test-only'; $assistant_openai_base_url='http://127.0.0.1:" + str(provider.server_port) + "'; $assistant_root_path=__DIR__.'/Joyee';")
     # This fixture exists only in the temporary copy served on loopback.
     (root / 'fixture.php').write_text('''<?php
 session_name('filemanager'); session_start();
 $_SESSION['filemanager']['logged'] = $_GET['user'];
 $_SESSION['token'] = 'test-csrf-token';
+if (isset($_GET['stale_settings'])) {
+    $_SESSION['filemanager']['user_settings'] = array('fallback_logging' => false, 'display_defaults_version' => 1);
+}
 if (isset($_GET['enable_writes'])) {
     require __DIR__ . '/config.php';
     function fm_runtime_state_dir() { return __DIR__ . '/state'; }
@@ -93,6 +117,130 @@ echo 'ready';
             request(user, fixture=True)
         status, body = request('admin', 'p=other')
         assert status == 200 and 'evidence.txt' in body, body[-1200:]
+        assert 'data-bs-theme="dark"' in body and 'fm-density-compact' in body
+        status, body = request('reader', 'p=other')
+        assert 'value="manager">manager (manažér)</option>' in body
+        assert 'data-bs-theme="dark"' in body and 'fm-density-compact' in body
+        # Help routes render the maintained local documents, including ownership/chat.
+        for key, heading in [('user-guide', 'Používateľská príručka'), ('ownership-chat', 'Vlastníctvo súborov a chat'), ('wiki-index', 'Slovenská dokumentácia TinyFileManager')]:
+            status, body = request('reader', 'p=other&help_doc=' + key)
+            assert status == 200 and heading in body and 'Dokument sa nepodarilo načítať' not in body
+        status, body = request('reader', 'p=other&help=2')
+        assert 'help_doc=ownership-chat' in body and 'github.com/slapiar/tinyfilemanager/issues' in body
+        # Admin bulk delete works despite configured role restrictions, including nested folders.
+        (root / 'data/other/bulk-folder').mkdir()
+        (root / 'data/other/bulk-folder/child.txt').write_text('delete fixture')
+        (root / 'data/other/bulk-file.txt').write_text('delete fixture')
+        payload = [('token', 'test-csrf-token'), ('group', '1'), ('delete', 'Delete'), ('file[]', 'bulk-folder'), ('file[]', 'bulk-file.txt'), ('file[]', 'bulk-file.txt')]
+        status, body = request('admin', 'p=other', payload)
+        assert not (root / 'data/other/bulk-folder').exists() and not (root / 'data/other/bulk-file.txt').exists()
+        assert 'neúspešné:' not in body
+        (root / 'data/other/bulk-ok.txt').write_text('delete fixture')
+        payload = [('token', 'test-csrf-token'), ('group', '1'), ('delete', 'Delete'), ('file[]', 'bulk-ok.txt'), ('file[]', 'missing<item>.txt')]
+        status, body = request('admin', 'p=other', payload)
+        assert 'Odstránené: 1. Už neexistujú:' in body and 'missing&lt;item&gt;.txt' in body
+        assert 'neúspešné:' not in body and not (root / 'data/other/bulk-ok.txt').exists()
+        # External filesystem changes: live folders, stale deletes and bounded search refresh.
+        (root / 'data/other/old-external').mkdir()
+        request('admin', 'p=other')
+        (root / 'data/other/old-external').rename(root / 'data/other/new-external')
+        status, body = request('admin', 'p=other')
+        assert 'new-external' in body and 'old-external' not in body
+        status, body = request('reader', 'p=other', {'ajax':'1','token':'test-csrf-token','type':'folder_tree_children','path':'other'})
+        names = [item['name'] for item in json.loads(body)['children']]
+        assert 'new-external' in names and 'old-external' not in names
+        (root / 'data/other/new-external').rmdir()
+        status, body = request('admin', 'p=other', [('token','test-csrf-token'),('group','1'),('delete','Delete'),('file[]','new-external')])
+        assert 'Už neexistujú: new-external' in body and 'neúspešné:' not in body
+        (root / 'data/other/late-search.txt').write_text('external')
+        index = sqlite3.connect(root / 'state/search-index.sqlite')
+        index.execute('UPDATE fm_file_index_meta SET last_full_index_at = ?, is_dirty = 0', (int(time.time()) - 61,))
+        index.commit()
+        status, body = request('admin', 'p=other', {'ajax':'1','token':'test-csrf-token','type':'search','path':'other','content':'late-search'})
+        assert 'late-search.txt' in body, body
+        (root / 'data/other/late-search.txt').unlink()
+        status, body = request('admin', 'p=other', {'ajax':'1','token':'test-csrf-token','type':'search','path':'other','content':'late-search'})
+        assert 'late-search.txt' not in body, body
+        index.close()
+        # AI Browser is visible and accessible only to the administrator during development.
+        for user, directory in [('reader', 'other'), ('manager', 'manager')]:
+            status, body = request(user, 'p=' + directory)
+            assert 'assistant_browser=1' not in body
+            for payload in (None, {'token': 'test-csrf-token', 'assistant_run': '1', 'assistant_message': 'Inspect', 'assistant_files[]': directory + '/evidence.txt'}):
+                status, body = request(user, 'p=' + directory + '&assistant_browser=1', payload)
+                assert status == 403 and 'iba administrátorovi' in body
+            assert not provider_requests
+        status, body = request('admin', 'p=other')
+        assert 'assistant_browser=1' in body
+        status, body = request('admin', 'p=other&assistant_browser=1')
+        assert status == 200 and 'assistant-browser-form' in body
+        ai = {'token': 'test-csrf-token', 'assistant_run': '1', 'assistant_message': 'Inspect', 'assistant_files[]': 'other/evidence.txt'}
+        status, body = request('admin', 'p=other&assistant_browser=1', ai)
+        assert 'Checked' in body and len(provider_requests) == 1, body[-800:]
+        # Provider diagnostics must distinguish quota from rate limits and never echo secrets.
+        for provider_status, provider_error, expected in [
+            (401, {'code': 'invalid_api_key'}, 'API odmietlo overenie'),
+            (429, {'type': 'insufficient_quota'}, 'nemá dostupnú kvótu'),
+            (429, {'code': 'rate_limit_exceeded'}, 'rýchlostný limit'),
+            (404, {'code': 'model_not_found'}, 'model neexistuje'),
+            (400, {'code': 'unsupported_value', 'param': 'temperature'}, 'parameter: temperature'),
+            (503, {}, 'dočasnú serverovú chybu'),
+        ]:
+            provider_error['message'] = 'SECRET-KEY-DO-NOT-DISPLAY'
+            status, body = request('admin', 'p=other&assistant_browser=1', ai)
+            assert expected in body and ('HTTP ' + str(provider_status)) in body
+            assert 'SECRET-KEY-DO-NOT-DISPLAY' not in body
+        provider_status = 200
+        # Admin can inspect more than eight text files, arbitrary extensions and full contents.
+        selected = []
+        for index in range(9):
+            name = 'other/admin-' + str(index) + '.log'
+            (root / 'data' / name).write_text(('x' * 200010 if index == 0 else 'log') + 'END-OF-FILE')
+            selected.append(('assistant_files[]', name))
+        payload = [('token', 'test-csrf-token'), ('assistant_run', '1'), ('assistant_message', 'Inspect')] + selected
+        status, body = request('admin', 'p=other&assistant_browser=1', payload)
+        assert 'Checked' in body
+        context_text = provider_requests[-1]['messages'][-1]['content']
+        assert context_text.count('END-OF-FILE') == 9 and 'x' * 200010 in context_text
+        provider_requests.clear()
+        provider_requests.append({})
+        ai['token'] = 'wrong'
+        status, body = request('admin', 'p=other&assistant_browser=1', ai)
+        assert status == 403
+        ai = {'token': 'test-csrf-token', 'assistant_apply': '1', 'assistant_require_confirmation': '0', 'assistant_plan_json': json.dumps({'operations': [{'action':'write','path':'other/blocked.txt','content':'blocked'}]})}
+        request('reader', 'p=other&assistant_browser=1', ai)
+        assert not (root / 'data/other/blocked.txt').exists()
+        request('admin', 'p=other&assistant_browser=1', ai)
+        assert (root / 'data/other/blocked.txt').read_text() == 'blocked'
+        status, body = request('admin', 'p=other')
+        assert 'capture="environment"' in body and 'Odfotiť a nahrať' in body and 'Nahrať zo zariadenia' in body
+        assert body.count('fa-cloud-upload') >= 2
+        status, body = request('reader', 'p=other&chat_action=fetch&with=manager')
+        assert status == 200 and json.loads(body)['ok'], body
+        status, body = request('manager', 'p=manager&chat_action=fetch&with=reader')
+        assert status == 200 and json.loads(body)['ok'], body
+        # A later explicit display preference is not forced back on each request.
+        status, body = request('admin', '', {'ajax': '1', 'type': 'settings', 'token': 'test-csrf-token', 'js-language': 'sk', 'js-theme-3': 'light', 'js-list-density': 'normal'})
+        status, body = request('admin', 'p=other')
+        assert 'data-bs-theme="light"' in body and 'fm-density-normal' in body, body[:300]
+        # Recover from a former session-only fallback and retain the new value.
+        request('admin', 'stale_settings=1', fixture=True)
+        settings = {'ajax': '1', 'type': 'settings', 'token': 'test-csrf-token', 'js-language': 'sk', 'js-theme-3': 'light', 'js-list-density': 'normal', 'js-fallback-log-enabled': 'true'}
+        status, body = request('admin', '', settings)
+        assert status == 200 and json.loads(body)['success'], body
+        status, body = request('admin', 'p=other&settings=1')
+        checkbox = re.search(r'<input[^>]+id="js-fallback-log-enabled"[^>]*>', body).group()
+        assert 'checked' in checkbox, checkbox
+        # Also survives a fresh authenticated session, not just a page reload.
+        clients.pop('admin')
+        request('admin', fixture=True)
+        status, body = request('admin', 'p=other&settings=1')
+        assert 'checked' in re.search(r'<input[^>]+id="js-fallback-log-enabled"[^>]*>', body).group()
+        settings.pop('js-fallback-log-enabled')
+        status, body = request('admin', '', settings)
+        assert json.loads(body)['success'], body
+        status, body = request('admin', 'p=other&settings=1')
+        assert 'checked' not in re.search(r'<input[^>]+id="js-fallback-log-enabled"[^>]*>', body).group()
         status, body = request('admin', 'admin_users_modal=edit&user=reader')
         assert 'name="original_username"' in body and 'minlength="2"' in body, body[:300]
         username_input = re.search(r'<input[^>]+id="admin-username"[^>]*>', body).group()
@@ -104,6 +252,7 @@ echo 'ready';
         request('login-test', fixture=True)
         status, body = request('login-test', '', dict(token='test-csrf-token', fm_usr='xy', fm_pwd='test-pass'))
         assert 'name="fm_usr"' not in body and 'manager' in body, body[-500:]
+        assert 'data-bs-theme="dark"' in body and 'fm-density-compact' in body
         status, body = request('admin', 'p=other', dict(token='test-csrf-token', newfilename='admin-write', newfile='folder'))
         assert (root / 'data/other/admin-write').is_dir(), body[-500:]
         (root / '.fm_usercfg').mkdir(exist_ok=True)
@@ -133,6 +282,9 @@ echo 'ready';
         assert chat.execute("SELECT sender FROM fm_chat_messages WHERE message='Keep this conversation'").fetchone()[0] == 'mg'
         # Two separate user scopes: a manager mutation must invalidate admin's tree.
         request('mg', 'enable_writes=1', fixture=True)
+        ai = {'token':'test-csrf-token','assistant_apply':'1','assistant_require_confirmation':'0','assistant_plan_json':json.dumps({'operations':[{'action':'write','path':'manager/first.txt','content':'blocked'}]})}
+        status, body = request('mg','p=manager&assistant_browser=1',ai)
+        assert status == 403 and not (root / 'data/manager/first.txt').exists()
         status, body = request('admin', 'p=manager')
         assert 'new-shared-folder' not in body
         status, body = request('mg', 'p=manager', dict(token='test-csrf-token',newfilename='new-shared-folder',newfile='folder'))
@@ -142,17 +294,21 @@ echo 'ready';
         status, body = save('admin', 'boss', original='admin', directory='')
         assert status == 200 and json.loads(body)['ok'], body
         assert state()['admin_identity']['username'] == 'boss'
+        status, body = request('admin', '', {'ajax': '1', 'type': 'settings_clear_fallback_log', 'token': 'test-csrf-token'})
+        assert status == 200 and json.loads(body)['success'], body
         # The existing administrator session follows its new login.
         status, body = save('admin', 'ok', password='test-pass', owner='boss')
         assert status == 200 and json.loads(body)['ok'], body
         status, body = request('admin', 'p=other')
         assert 'evidence.txt' in body, body[:500]
-        print('PASS: admin visibility, editable name, 2-character names, rename/password/roles, collision rejection, manager boundary, cross-scope folder refresh, admin self-rename/session')
+        print('PASS: admin visibility, editable name, 2-character names, rename/password/roles, collision rejection, manager boundary, cross-scope folder refresh, admin self-rename/session, dark/compact profile migration and personal overrides, manager chat across different directories, fallback toggle on/off and session recovery')
     except Exception:
         log.flush()
         print((root / 'server.log').read_text()[-4500:])
         raise
     finally:
+        provider.shutdown()
+        provider.server_close()
         server.terminate()
         server.wait(timeout=5)
         log.close()

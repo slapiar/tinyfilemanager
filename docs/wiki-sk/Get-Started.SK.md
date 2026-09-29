@@ -1,30 +1,27 @@
-# Nastavenie TinyFileManager (Get Started)
+# Začíname a nasadenie
 
-Táto dokumentácia pomáha s inštaláciou krok po kroku.
-Odporúča sa prejsť ju pozorne, aby bolo jasné, ako je aplikácia navrhnutá a ako ju korektne konfigurovať.
-Na pokročilé úpravy je potrebná základná znalosť PHP.
+Aktualizované pre 3.3.11. Táto kapitola je určená správcovi webhostingu.
 
-## Požiadavky
+## Požiadavky tohto forku
 
-TinyFileManager je jednoduchý a rýchly správca súborov v jednom PHP súbore.
-Funguje online aj lokálne na platformách Linux, Windows a Mac.
-Minimálna požiadavka je PHP 5.5+.
+`composer.json` uvádza PHP 8.0 alebo vyššie; aktuálne regresné overenie prebehlo na PHP 8.3. Starý údaj PHP 5.5 sa na tento fork nevzťahuje. Prevádzka používa okrem hlavného PHP súboru aj adresár `src`, preklady, štýly a dokumentáciu.
 
-- PHP 5.5.0 alebo vyššie
-- Rozšírenia Zip a Tar pre zip/unzip akcie
-- Rozšírenia Fileinfo, iconv a mbstring sú silno odporúčané
+Pre index, chat a ukladanie nastavení je potrebné SQLite3. Prenosy a práca s textom používajú aj Fileinfo, mbstring a iconv; ZIP operácie vyžadujú podporu ZIP. Dostupnosť konkrétnych funkcií závisí od rozšírení PHP na serveri.
 
-> Pri úpravách správcu súborov buď opatrný. Nesprávna úprava môže aplikáciu úplne rozbiť.
-> Pri prispôsobovaní bez podpory odporúčame najprv skontrolovať Issues alebo vytvoriť novú požiadavku:
-> https://github.com/prasathmani/tinyfilemanager/issues
+## Aktualizácia na webhostingu
 
-## Ako začať najrýchlejšie
+1. Zálohujte aplikáciu, používateľské dáta a prevádzkový stav.
+2. Nahrajte súbory pripraveného vydania. Samotný `tinyfilemanager.php` nestačí na prvú inštaláciu.
+3. Zachovajte vlastný `config.php`, `api.config.php`, prípadnú bridge konfiguráciu a prevádzkové databázy. Repozitárový `config.php` nie je náhradou produkčnej konfigurácie.
+4. Nahrajte aj celý aktuálny adresár `docs`, inak Pomoc zobrazí staré návody alebo chybu načítania.
+5. Overte prihlásenie a bežné operácie na testovacích dátach s účtami rôznych rolí.
 
-- Stiahni ZIP s aktuálnou verziou z hlavnej vetvy.
-- Skopíruj `tinyfilemanager.php` na webhosting.
-- Voliteľne premenuj súbor `tinyfilemanager.php` na iný názov.
+`release.sh` vytvára ZIP z verzovaných súborov; sám neaktualizuje produkčný server. Prepínače `--auto-commit` a `--auto-push` sú voliteľné. Vydanie v `RELEASE_VERSION` môže mať iné označenie než základná konštanta `VERSION` zobrazovaná aplikáciou.
 
-## Poznámka pre tento fork
+## Trvalé dáta
 
-Tento fork obsahuje ďalšie rozšírené funkcie (roly, API, bridge, spevnenie nasadenia).
-Pre produkčné nasadenie odporúčame postupovať podľa `DEPLOYMENT.md`.
+Nastavte vhodnú perzistentnú cestu `$state_storage_path`. Bez vlastného nastavenia sa používa `.fm_usercfg`. Zachovávajte najmä konfiguráciu, chat, vlastníctvo a audit; nejde len o dočasnú cache. Technické pokyny k migrácii sú aj v koreňovom `DEPLOYMENT.md` a skripte `scripts/migrate-legacy-state.php`.
+
+## Prevádzkové overenie
+
+Zmeny najprv overte na oddelenej kópii. Lokálne regresné testy nenahrádzajú kontrolu oprávnení a konfigurácie konkrétneho hostingu. AI Browser zostáva dostupný iba administrátorovi a nie je súčasťou bežného pracovného postupu klientov.

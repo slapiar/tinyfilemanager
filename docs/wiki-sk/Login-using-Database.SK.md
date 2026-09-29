@@ -1,9 +1,7 @@
-# Prihlásenie pomocou databázy (Login using Database)
+# Účty a databázové úložisko
 
-Aktualizovaný skript umožňuje prihlásenie cez databázu a môžeš ho ďalej prispôsobiť podľa vlastných požiadaviek.
+Aktuálny fork pracuje s účtami aplikácie a vrstvou `ConfigStore`, ktorá používa SQLite aj migračné postupy zo starších konfigurácií. Neznamená to, že možno bez úprav pripojiť ľubovoľnú externú databázu používateľov.
 
-- Balík: [tfm-db.zip](https://github.com/user-attachments/files/18514059/tfm-db.zip)
+Pre bežné založenie, zmenu hesla alebo premenovanie účtu použite [správu používateľov](?help_doc=wiki-security-users). Externé prihlasovanie alebo SSO vyžaduje samostatnú integráciu a overenie oprávnení, relácií a súvisiacich údajov.
 
-## Poznámka pre tento fork
-
-Pred nasadením over kompatibilitu riešenia s aktuálnou architektúrou projektu a bezpečnostnými pravidlami v dokumente SECURITY.md.
+Táto kapitola nahrádza starý odkaz na samostatný balík `tfm-db.zip`, ktorého kompatibilita s týmto forkom nebola overená. Neinštalujte ho ako aktualizáciu aktuálneho správcu.

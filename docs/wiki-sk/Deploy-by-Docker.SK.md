@@ -1,61 +1,20 @@
-# Nasadenie cez Docker
+# Docker v tomto repozitári
 
-Uisti sa, že máš nainštalovaný Docker:
-https://docs.docker.com/engine/install/
+Toto je technická kapitola pre správcu, stav 3.3.11. Nepoužívajte image pôvodného projektu ako záruku prítomnosti našich rozšírení.
 
-> Poznámka: Potrebuješ absolútnu cestu k adresáru, ktorý bude TinyFileManager obsluhovať.
-> Ak bežíš na špeciálnej platforme (napr. Raspberry Pi), môže byť vhodné stiahnuť projekt a buildnúť image lokálne.
+Repozitár obsahuje `Dockerfile` založený na PHP 8.3 CLI a `docker-compose.yml`. Compose mapuje port 8080, adresáre `data`, `uploads` a `config.php`. Kontajner používa neprivilegovaného používateľa.
 
-## Spustenie kontajnera
+## Aktuálne obmedzenia konfigurácie
 
-```sh
-docker run -d \
-  -v /absolute/path:/var/www/html/data \
-  -p 80:80 \
-  --restart=always \
-  --name tinyfilemanager \
-  tinyfilemanager/tinyfilemanager:master
-```
+Dockerfile nekopíruje adresár `docs`, takže bez jeho doplnenia do image alebo pripojenia ako volume nie je lokálna Pomoc kompletná. Rovnako nekopíruje všetky samostatné API/bridge súbory. Overte dostupnosť SQLite3 a ďalších potrebných PHP rozšírení vo výslednom image; Dockerfile explicitne inštaluje ZIP. Táto dokumentačná aktualizácia Docker nasadenie neopravuje ani nepotvrdzuje jeho produkčné overenie.
 
-Potom otvor `http://127.0.0.1/` a prihlás sa.
-
-DockerHub: https://hub.docker.com/r/tinyfilemanager/tinyfilemanager
-
-## Ako zmeniť konfiguráciu v dockeri
-
-Pôvodne:
-
-```php
-$root_path = $_SERVER['DOCUMENT_ROOT'];
-$root_url = '';
-```
-
-Upravené:
-
-```php
-$root_path = $_SERVER['DOCUMENT_ROOT'].'/data';
-$root_url = 'data/';
-```
-
-Ak upravuješ `index.php`, pridaj ďalší volume mapping:
+Pred použitím pripravte vlastnú konfiguráciu pracovného koreňa a trvalého stavu a overte úplnosť balíka. Základné príkazy pre testovaciu kópiu repozitára:
 
 ```sh
-docker run -d \
-  -v /absolute/path:/var/www/html/data \
-  -v /absolute/path/index.php:/var/www/html/index.php \
-  -p 80:80 \
-  --restart=always \
-  --name tinyfilemanager \
-  tinyfilemanager/tinyfilemanager:master
+docker compose build
+docker compose up -d
 ```
 
-## Zastavenie bežiaceho kontajnera
+Aplikácia je potom dostupná na nakonfigurovanom porte 8080. Samotná odpoveď HTTP na hlavnej stránke nepotvrdzuje funkčnosť chatu, indexu, API ani Pomoci.
 
-```sh
-docker rm -f tinyfilemanager
-```
-
-## Poznámka pre tento fork
-
-Tento repozitár už obsahuje novšiu Docker konfiguráciu a odporúčaný port `8080`.
-Pre aktuálny postup uprednostni `DEPLOYMENT.md` a `docker-compose.yml` v tomto projekte.
+[Požiadavky a nasadenie](?help_doc=wiki-get-started)

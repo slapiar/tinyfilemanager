@@ -1,6 +1,9 @@
-# TinyFileManager Wiki - Slovenský preklad
+# Slovenská dokumentácia TinyFileManager
 
-Tento adresár obsahuje preklad pôvodnej wiki od autora projektu.
+Aktualizované 29. 9. 2026 pre náš fork, vydanie 3.3.11. Pôvodné kapitoly sú doplnené a tam, kde sa správanie líši, nahradené aktuálnym opisom.
+
+- [Používateľská príručka](?help_doc=user-guide)
+- [Vlastníctvo a chat](?help_doc=ownership-chat)
 
 ## Preložené kapitoly
 
@@ -25,17 +28,6 @@ Tento adresár obsahuje preklad pôvodnej wiki od autora projektu.
 
 Pôvodná wiki: https://github.com/prasathmani/tinyfilemanager/wiki
 
-## Stav migrácie
+## Rozsah a história
 
-- [x] Home
-- [x] Get Started
-- [x] Deploy by Docker
-- [x] Security and User Management
-- [x] Exclude Files & Folders
-- [x] Restriction by file type
-- [x] IP Blacklist and Whitelist
-- [x] Embedding
-- [x] Config Flags
-- [x] FAQ
-- [x] Login using Database
-- [x] Authors and Contributors
+Návody opisujú aktuálne funkcie; rozpracované možnosti sú výslovne označené. Archív `docs/archive/refactor-history` zostáva historickým záznamom vývoja a nemá prednosť pred touto príručkou.

@@ -1,79 +1,31 @@
-# Bezpečnosť a správa používateľov
+# Účty, roly a oprávnenia
 
-Keďže TinyFileManager dokáže manipulovať so súbormi na serveri, je nevyhnutné aplikáciu správne zabezpečiť.
+Aktualizované pre 3.3.11.
 
-## Konfigurácia
+## Správa účtov
 
-Predvolené prihlasovacie údaje:
+Administrátor otvorí správu používateľov ikonou v hlavičke. Môže vytvoriť alebo upraviť účet, zmeniť jeho meno, heslo, rolu, pridelené adresáre, manažéra a dostupnosť hromadných akcií. Meno musí mať aspoň dva znaky a nesmie kolidovať s iným účtom; ďalšie podmienky kontroluje formulár.
 
-- admin/admin@123
-- user/12345
+Premenovanie vykonávajte cez správu účtov, ktorá prenesie súvisiace údaje. Prázdne heslo pri úprave existujúceho účtu zachová pôvodné heslo. Používateľ si vlastné heslo mení cez **Môj profil / Zmena hesla**.
 
-**Upozornenie**: Pred použitím si nastav vlastné používateľské meno a heslo v `$auth_users`. Heslá sú šifrované pomocou `password_hash()`.
+## Význam rolí
 
-Zapnutie alebo vypnutie autentifikácie nastavíš cez `$use_auth` na `true` alebo `false`.
+- **Administrátor:** celý nakonfigurovaný pracovný priestor, správa účtov a hromadné akcie. Uložené zoznamy readonly, upload-only, manažérov či zákaz hromadných akcií ho neobmedzujú ako bežný účet. Rola neudeľuje systémové práva root na webhostingu.
+- **Manažér:** pridelené adresáre a správa používateľov v povolenom rozsahu; mazanie súborov a priečinkov nie je dostupné.
+- **Štandardný účet:** práca v povolených adresároch podľa konfigurácie.
+- **Iba na čítanie:** bez vytvárania, úprav, uploadu a mazania.
+- **Iba na nahrávanie:** odovzdávanie súborov; ostatné operácie sú obmedzené.
 
-```php
-// Auth with login/password
-// set true/false to enable/disable it
-// Is independent from IP white- and blacklisting
-$use_auth = true;
+Označenia klient a dodávateľ sú pracovné pomenovania; prístup určuje rola a priradené adresáre. Ak má účet neplatné pridelenie adresárov, aplikácia môže použiť spoločný priečinok `free`; pri nedostupnosti náhradnej cesty prístup odmietne.
 
-// Login user name and password
-// Users: array('Username' => 'Password', 'Username2' => 'Password2', ...)
-// Generate secure password hash - https://tinyfilemanager.github.io/docs/pwd.html
-$auth_users = array(
-    'admin' => '$2y$10$/K.hjNr84lLNDt8fTXjoI.DBp6PpeyoJ.mGwrrLuCZfAwfSAGqhOW', //admin@123
-    'user' => '$2y$10$Fg6Dz8oH9fPoZ2jJan5tZuv6Z4Kp7avtQ9bDfrdRntXtPeiMAZyGO', //12345
-    'guest' => '$2y$10$a.DMI5sRjAnvhb.8rFAXY.XPSEO/eatVb4qCMmTc2YcxTDKp9xMyC' //guest
-);
-```
+## Heslá a konfigurácia
 
-## Heslo
+Heslá sa ukladajú ako hashe vytvorené `password_hash()`, nie ako čitateľné heslá ani vratné šifrovanie. Nasadenie používa vlastné účty; údaje z pôvodných ukážok nie sú prihlasovacími údajmi vašej inštalácie.
 
-Heslá sa šifrujú pomocou `password_hash()`. Nový hash môžeš vygenerovať tu:
-https://tinyfilemanager.github.io/docs/pwd.html
+`$use_auth` zapína overovanie používateľov. `$directories_users`, `$manager_users`, `$readonly_users`, `$upload_only_users` a `$user_manager_owners` sú súvisiace konfiguračné položky. Zápis z rozhrania používa aj prevádzkové úložisko konfigurácie; náhodná ručná zmena jedného súboru nemusí zodpovedať všetkým uloženým údajom.
 
-Ak sa hash nepodarí vygenerovať alebo narazíš na problém, použi generovanie priamo v TinyFileManageri cez:
-`tinyfilemanager > Help > Generate new password hash`
+## Pri probléme s mazaním
 
-Alternatívny generátor:
-https://onlinephp.io/password-hash
+Rozlišujte zákaz operácie rolou, chýbajúcu položku zo starého zoznamu a chybu súborového systému. Od verzie 3.3.10 hromadné mazanie už chýbajúce položky preskočí po overení rodičovského adresára. Chyby prístupu sa nezamieňajú za potvrdenú neexistenciu.
 
-Alebo môžeš nastaviť hash priamo cez `password_hash()`:
-
-```php
-$auth_users = array(
-    'username' => password_hash('password here', PASSWORD_DEFAULT)
-);
-```
-
-## Používatelia iba na čítanie
-
-Používatelia s rolou readonly nemajú oprávnenie vytvárať, upravovať, mazať ani nahrávať súbory.
-
-```php
-// Readonly users
-// e.g. array('users', 'guest', ...)
-$readonly_users = array(
-    'user',
-    'guest'
-);
-```
-
-## Adresáre špecifické pre používateľa
-
-Keďže používatelia môžu nahrávať, sťahovať, mazať a meniť oprávnenia na väčšine súborov v prístupných priečinkoch, často je vhodné obmedziť ich len na konkrétne adresáre.
-
-Takto vieš dať používateľovi prístup iba do jednej časti úložiska.
-
-Obmedzený prístup je užitočný aj vtedy, keď chceš niekomu povoliť nahrávanie súborov, ale nechceš mu sprístupniť celý adresár.
-
-```php
-// user specific directories
-// array('Username' => 'Directory path', 'Username2' => 'Directory path', ...)
-$directories_users = array(
-    'user' => 'root/user-folder',
-    'guest' => 'root/guest/temp'
-);
-```
+[Používateľská príručka](?help_doc=user-guide) · [Časté otázky](?help_doc=wiki-faq)
