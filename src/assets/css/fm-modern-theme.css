@@ -1063,3 +1063,39 @@ body.fm-density-ultra-compact #main-table.fm-modern-table .fm-action-note {
   padding: 0 2px !important;
   line-height: 1 !important;
 }
+
+/* Keep desktop listings compact and leave room for the existing floating commands. */
+@media (min-width: 768px) {
+  body.fm-list-mode .fm-table-wrap {
+    width: calc(100% - 280px);
+  }
+
+  body.fm-list-mode #main-table.fm-modern-table {
+    width: auto !important;
+    max-width: 100%;
+    table-layout: auto;
+  }
+
+  body.fm-list-mode #main-table.fm-modern-table th,
+  body.fm-list-mode #main-table.fm-modern-table td {
+    padding-left: 0.3rem !important;
+    padding-right: 0.3rem !important;
+  }
+
+  body.fm-list-mode #main-table.fm-modern-table th.custom-checkbox-header,
+  body.fm-list-mode #main-table.fm-modern-table .fm-col-size,
+  body.fm-list-mode #main-table.fm-modern-table .fm-col-modified,
+  body.fm-list-mode #main-table.fm-modern-table .fm-col-perms,
+  body.fm-list-mode #main-table.fm-modern-table .fm-col-owner,
+  body.fm-list-mode #main-table.fm-modern-table .fm-col-actions {
+    width: auto !important;
+    white-space: nowrap;
+  }
+
+  body.fm-list-mode #main-table.fm-modern-table .fm-col-name .filename {
+    max-width: 36ch;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+}

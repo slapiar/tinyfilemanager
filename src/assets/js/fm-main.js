@@ -1170,6 +1170,7 @@
     } else {
       window.mainTable = table.DataTable({
         paging: false,
+        autoWidth: false,
         info: false,
         order: [],
         columnDefs: [{
