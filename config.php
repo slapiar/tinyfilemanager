@@ -121,6 +121,9 @@ $user_welcome_messages = array(
 
 $welcome_message_shown_users = array(
     'KE',
+    'Maluzina',
+    'NR',
     'PD',
     'ZA',
+    'ZV',
 );
