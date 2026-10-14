@@ -2,7 +2,7 @@
 
 ## Prečo nevidím rovnaké možnosti ako kolega?
 
-Rozhoduje rola, pridelené adresáre a povolenie hromadných akcií. Manažér nemá mazanie. AI Browser je počas vývoja iba pre administrátora.
+Rozhoduje rola, pridelené adresáre a povolenie hromadných akcií. Manažér môže mazať v pridelených adresároch s právom zápisu. AI Browser je počas vývoja iba pre administrátora.
 
 ## Čo robí Ultra?
 

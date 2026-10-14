@@ -11,7 +11,7 @@ Premenovanie vykonávajte cez správu účtov, ktorá prenesie súvisiace údaje
 ## Význam rolí
 
 - **Administrátor:** celý nakonfigurovaný pracovný priestor, správa účtov a hromadné akcie. Uložené zoznamy readonly, upload-only, manažérov či zákaz hromadných akcií ho neobmedzujú ako bežný účet. Rola neudeľuje systémové práva root na webhostingu.
-- **Manažér:** pridelené adresáre a správa používateľov v povolenom rozsahu; mazanie súborov a priečinkov nie je dostupné.
+- **Manažér:** pridelené adresáre a správa používateľov v povolenom rozsahu; mazanie súborov a priečinkov je dostupné v pridelených adresároch s právom zápisu.
 - **Štandardný účet:** práca v povolených adresároch podľa konfigurácie.
 - **Iba na čítanie:** bez vytvárania, úprav, uploadu a mazania.
 - **Iba na nahrávanie:** odovzdávanie súborov; ostatné operácie sú obmedzené.

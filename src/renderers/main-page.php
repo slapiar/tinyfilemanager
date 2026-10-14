@@ -384,9 +384,7 @@
                         </div>
                         <div class="inline-actions">
                             <?php if (!FM_READONLY && !FM_UPLOAD_ONLY && FM_CAN_WRITE_IN_PATH): ?>
-                                <?php if (!FM_MANAGER): ?>
                                 <a title="<?php echo lng('Delete') ?>" href="?p=<?php echo urlencode(FM_PATH) ?>&amp;del=<?php echo urlencode($f) ?>" onclick="confirmDailog(event, '1028','<?php echo lng('Delete') . ' ' . lng('Folder'); ?>','<?php echo urlencode($f) ?>', this.href);"> <i class="fa fa-trash-o" aria-hidden="true"></i></a>
-                                <?php endif; ?>
                                 <a title="<?php echo lng('Rename') ?>" href="#" onclick="rename('<?php echo fm_enc(addslashes(FM_PATH)) ?>', '<?php echo fm_enc(addslashes($f)) ?>');return false;"><i class="fa fa-pencil-square-o" aria-hidden="true"></i></a>
                                 <a title="<?php echo lng('CopyTo') ?>..." href="?p=<?php echo urlencode(FM_PATH) ?>&amp;copy=<?php echo urlencode(trim(FM_PATH . '/' . $f, '/')) ?>"><i class="fa fa-files-o" aria-hidden="true"></i></a>
                             <?php endif; ?>
@@ -559,9 +557,7 @@
                         </div>
                         <div class="inline-actions">
                             <?php if (!FM_READONLY && !FM_UPLOAD_ONLY && FM_CAN_WRITE_IN_PATH): ?>
-                                <?php if (!FM_MANAGER): ?>
                                 <a title="<?php echo lng('Delete') ?>" href="?p=<?php echo urlencode(FM_PATH) ?>&amp;del=<?php echo urlencode($f) ?>" onclick="confirmDailog(event, 1209, '<?php echo lng('Delete') . ' ' . lng('File'); ?>','<?php echo urlencode($f); ?>', this.href);"> <i class="fa fa-trash-o"></i></a>
-                                <?php endif; ?>
                                 <a title="<?php echo lng('Rename') ?>" href="#" onclick="rename('<?php echo fm_enc(addslashes(FM_PATH)) ?>', '<?php echo fm_enc(addslashes($f)) ?>');return false;"><i class="fa fa-pencil-square-o"></i></a>
                                 <a title="<?php echo lng('CopyTo') ?>..."
                                     href="?p=<?php echo urlencode(FM_PATH) ?>&amp;copy=<?php echo urlencode(trim(FM_PATH . '/' . $f, '/')) ?>"><i class="fa fa-files-o"></i></a>
@@ -616,7 +612,7 @@
         $footerLoggedUser = (FM_USE_AUTH && !empty($_SESSION[FM_SESSION_ID]['logged'])) ? $_SESSION[FM_SESSION_ID]['logged'] : '';
         $fm_bulk_toolbar_visible = defined('FM_BULK_ACTIONS_ENABLED') ? (bool) FM_BULK_ACTIONS_ENABLED : (!FM_READONLY && !FM_UPLOAD_ONLY && FM_CAN_WRITE_IN_PATH);
         $fm_bulk_can_modify = !FM_READONLY && !FM_UPLOAD_ONLY && FM_CAN_WRITE_IN_PATH;
-        $fm_bulk_can_delete = $fm_bulk_can_modify && !FM_MANAGER;
+        $fm_bulk_can_delete = $fm_bulk_can_modify;
         // Chat availability is role-agnostic: every logged-in user can communicate.
         $footerShowUserBadges = !empty($footerLoggedUser);
         $footerChatPeers = $footerShowUserBadges

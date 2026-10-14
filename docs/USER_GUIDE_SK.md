@@ -6,7 +6,7 @@ Aktualizované 29. 9. 2026 pre vydanie 3.3.11. Návod opisuje náš upravený Ti
 
 Prihláste sa údajmi od správcu. Po prihlásení sa otvorí váš predvolený pridelený priečinok. Dostupné adresáre a akcie závisia od roly a nastavenia účtu. Názov klient alebo dodávateľ sám neurčuje oprávnenia; rozhoduje pridelený prístup.
 
-Administrátor má prístup k celému nakonfigurovanému pracovnému priestoru. Manažér spravuje pridelenú oblasť a svojich používateľov, ale nemá mazanie. Účet iba na čítanie nemôže meniť súbory. Účet iba na nahrávanie slúži na odovzdávanie súborov. Štandardný účet pracuje podľa pridelených oprávnení.
+Administrátor má prístup k celému nakonfigurovanému pracovnému priestoru. Manažér spravuje pridelenú oblasť a svojich používateľov, vrátane mazania súborov a priečinkov v oblasti s právom zápisu. Účet iba na čítanie nemôže meniť súbory. Účet iba na nahrávanie slúži na odovzdávanie súborov. Štandardný účet pracuje podľa pridelených oprávnení.
 
 ## Orientácia v okne
 

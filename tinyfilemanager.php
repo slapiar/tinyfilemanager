@@ -2003,7 +2003,7 @@ if ((((FM_USE_AUTH && !empty($_SESSION[FM_SESSION_ID]['logged'])) || !FM_USE_AUT
 }
 
 // Delete file / folder
-if (isset($_GET['del'], $_POST['token']) && !FM_READONLY && !FM_UPLOAD_ONLY && !FM_MANAGER && FM_CAN_WRITE_IN_PATH) {
+if (isset($_GET['del'], $_POST['token']) && !FM_READONLY && !FM_UPLOAD_ONLY && FM_CAN_WRITE_IN_PATH) {
     $file_action_handler = new TFM_FileActionHandler(FM_ROOT_PATH, FM_PATH);
     $file_action_handler->handleDelete($_GET, $_POST);
     exit;
@@ -2183,7 +2183,7 @@ if (isset($_POST['group'], $_POST['download_selected'], $_POST['token']) && FM_B
 }
 
 // Mass deleting
-if (isset($_POST['group'], $_POST['delete'], $_POST['token']) && !FM_READONLY && !FM_UPLOAD_ONLY && !FM_MANAGER && FM_CAN_WRITE_IN_PATH) {
+if (isset($_POST['group'], $_POST['delete'], $_POST['token']) && !FM_READONLY && !FM_UPLOAD_ONLY && FM_CAN_WRITE_IN_PATH) {
     $file_action_handler = new TFM_FileActionHandler(FM_ROOT_PATH, FM_PATH);
     $file_action_handler->handleMassDelete($_POST);
     exit;

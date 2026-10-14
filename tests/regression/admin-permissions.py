@@ -282,6 +282,32 @@ echo 'ready';
         assert chat.execute("SELECT sender FROM fm_chat_messages WHERE message='Keep this conversation'").fetchone()[0] == 'mg'
         # Two separate user scopes: a manager mutation must invalidate admin's tree.
         request('mg', 'enable_writes=1', fixture=True)
+        # Managers can delete in their assigned writable directory, including the viewer and bulk UI.
+        own = root / 'data/manager'
+        (own / 'single.txt').write_text('single')
+        (own / 'bulk.txt').write_text('bulk')
+        (own / 'folder').mkdir()
+        (own / 'folder/child.txt').write_text('nested')
+        status, body = request('mg', 'p=manager')
+        assert 'del=single.txt' in body and 'del=folder' in body and 'name="delete"' in body
+        status, body = request('mg', 'p=manager&view=single.txt')
+        assert 'del=single.txt' in body
+        status, body = request('rd', 'p=manager')
+        assert 'del=single.txt' not in body
+        request('rd', 'p=manager&del=single.txt', {'token':'test-csrf-token'})
+        request('rd', 'p=manager', [('token','test-csrf-token'),('group','1'),('delete','Delete'),('file[]','single.txt')])
+        assert (own / 'single.txt').exists()
+        request('mg', 'p=manager&del=single.txt', {'token':'invalid'})
+        assert (own / 'single.txt').exists()
+        request('mg', 'p=manager&del=single.txt', {'token':'test-csrf-token'})
+        assert not (own / 'single.txt').exists()
+        request('mg', 'p=manager', [('token','test-csrf-token'),('group','1'),('delete','Delete'),('file[]','bulk.txt'),('file[]','folder')])
+        assert not (own / 'bulk.txt').exists() and not (own / 'folder').exists()
+        # Directory boundaries and read-only restrictions remain effective for direct requests.
+        for user in ('mg', 'rd'):
+            request(user, 'p=other&del=evidence.txt', {'token':'test-csrf-token'})
+            request(user, 'p=other', [('token','test-csrf-token'),('group','1'),('delete','Delete'),('file[]','evidence.txt')])
+            assert (root / 'data/other/evidence.txt').exists()
         ai = {'token':'test-csrf-token','assistant_apply':'1','assistant_require_confirmation':'0','assistant_plan_json':json.dumps({'operations':[{'action':'write','path':'manager/first.txt','content':'blocked'}]})}
         status, body = request('mg','p=manager&assistant_browser=1',ai)
         assert status == 403 and not (root / 'data/manager/first.txt').exists()
@@ -301,7 +327,7 @@ echo 'ready';
         assert status == 200 and json.loads(body)['ok'], body
         status, body = request('admin', 'p=other')
         assert 'evidence.txt' in body, body[:500]
-        print('PASS: admin visibility, editable name, 2-character names, rename/password/roles, collision rejection, manager boundary, cross-scope folder refresh, admin self-rename/session, dark/compact profile migration and personal overrides, manager chat across different directories, fallback toggle on/off and session recovery')
+        print('PASS: manager single/bulk/viewer delete, CSRF and directory/readonly boundaries, admin visibility, editable name, 2-character names, rename/password/roles, collision rejection, manager boundary, cross-scope folder refresh, admin self-rename/session, dark/compact profile migration and personal overrides, manager chat across different directories, fallback toggle on/off and session recovery')
     except Exception:
         log.flush()
         print((root / 'server.log').read_text()[-4500:])
