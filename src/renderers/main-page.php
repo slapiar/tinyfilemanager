@@ -647,7 +647,14 @@
                     <strong>Hromadné akcie</strong>
                     <button type="button" class="btn-close btn-close-sm" data-fm-bulk-close aria-label="Close"></button>
                 </div>
-                <div class="fm-bulk-toolbar-wrapper d-none d-md-block">
+                <div class="fm-mobile-bulk-menu">
+                    <label for="fm-mobile-bulk-action" class="visually-hidden">Vyberte hromadnú akciu</label>
+                    <select id="fm-mobile-bulk-action" class="form-select">
+                        <option value="">Vyberte akciu…</option>
+                    </select>
+                    <button type="button" id="fm-mobile-bulk-run" class="btn btn-primary" disabled>Vykonať</button>
+                </div>
+                <div class="fm-bulk-toolbar-wrapper">
                     <small class="text-muted fm-bulk-toolbar-label">Lišta hromadných akcií</small>
                     <div id="fm-selection-bar" class="btn-group flex-wrap" data-toggle="buttons" role="toolbar">
                     <span id="fm-selection-count" class="btn btn-small btn-outline-secondary btn-2 pe-none" style="display:none;">0</span>
@@ -1183,6 +1190,7 @@
         width: 100%;
     }
 
+    .fm-mobile-bulk-menu,
     .fm-mobile-bulk-launcher,
     .fm-mobile-bulk-backdrop,
     .fm-mobile-bulk-header {
@@ -1270,6 +1278,26 @@
             transform: translateY(0);
             opacity: 1;
             pointer-events: auto;
+        }
+
+        .fm-bulk-toolbar-wrapper {
+            display: none;
+        }
+
+        .fm-mobile-bulk-menu {
+            display: flex;
+            gap: .5rem;
+            align-items: center;
+        }
+
+        .fm-mobile-bulk-menu .form-select {
+            flex: 1;
+            min-width: 0;
+            min-height: 44px;
+        }
+
+        .fm-mobile-bulk-menu .btn {
+            min-height: 44px;
         }
 
         .fm-mobile-bulk-header {
@@ -1433,6 +1461,39 @@
         function getSelectedItemsCount() {
             var checked = tableEl.querySelectorAll('input[name="file[]"]:checked');
             return checked ? checked.length : 0;
+        }
+
+        function initMobileBulkMenu() {
+            var select = document.getElementById('fm-mobile-bulk-action');
+            var run = document.getElementById('fm-mobile-bulk-run');
+            if (!select || !run) return;
+            // Use the rendered desktop commands as the single source of role permissions.
+            var commands = Array.from(document.querySelectorAll('#fm-selection-bar a'));
+            commands.forEach(function (command, index) {
+                var option = document.createElement('option');
+                option.value = String(index);
+                option.textContent = command.textContent.replace(/\s+/g, ' ').trim();
+                select.appendChild(option);
+            });
+            select.addEventListener('change', function () {
+                run.disabled = select.value === '';
+            });
+            run.addEventListener('click', function () {
+                if (select.value === '') return;
+                var command = commands[Number(select.value)];
+                if (!command) return;
+                var selectionCommand = (command.getAttribute('href') || '').indexOf('#/') === 0;
+                if (!selectionCommand && !tableEl.querySelector('input[name="file[]"]:checked')) {
+                    window.alert('Najprv označte aspoň jeden súbor alebo priečinok.');
+                    return;
+                }
+                // Preserve existing confirmation dialogs, submit buttons and copy/move flags.
+                command.click();
+                updateSelectionBarState();
+                select.value = '';
+                run.disabled = true;
+                closeMobileBulkPanel();
+            });
         }
 
         function closeMobileBulkPanel() {
@@ -2348,6 +2409,8 @@
         setupSidebarResizer();
         bindFloatingRowActions();
         bindContextMenu();
+
+        initMobileBulkMenu();
 
         if (bulkOpenButtonEl) {
             bulkOpenButtonEl.addEventListener('click', function () {
