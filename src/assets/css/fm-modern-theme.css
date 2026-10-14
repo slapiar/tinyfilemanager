@@ -1099,3 +1099,15 @@ body.fm-density-ultra-compact #main-table.fm-modern-table .fm-action-note {
     white-space: nowrap;
   }
 }
+
+/* Secondary file details: 75% of the current density's cell font size. */
+#main-table.fm-modern-table tbody td > .fm-file-detail {
+  font-size: 75%;
+  font-weight: 400 !important;
+}
+
+#main-table.fm-modern-table .fm-file-detail a,
+#main-table.fm-modern-table .fm-file-detail span {
+  font-size: inherit;
+  font-weight: 400 !important;
+}

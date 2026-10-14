@@ -288,10 +288,10 @@
                             <?php echo ($is_link ? ' &rarr; <i>' . readlink($path . '/' . $f) . '</i>' : '') ?>
                         </div>
                     </td>
-                    <td class="fm-col-size" data-order="a-<?php echo str_pad($filesize_raw, 18, "0", STR_PAD_LEFT); ?>">
+                    <td class="fm-col-size" data-order="a-<?php echo str_pad($filesize_raw, 18, "0", STR_PAD_LEFT); ?>"><span class="fm-file-detail">
                         <?php echo $filesize; ?>
-                    </td>
-                    <td class="fm-col-modified" data-order="a-<?php echo $date_sorting; ?>"><?php echo $modif ?></td>
+                    </span></td>
+                    <td class="fm-col-modified" data-order="a-<?php echo $date_sorting; ?>"><span class="fm-file-detail"><?php echo $modif ?></span></td>
                     <?php if (!FM_IS_WIN && !$hide_Cols) { ?>
                         <?php
                         $ownerName = isset($owner['name']) ? (string) $owner['name'] : '?';
@@ -349,7 +349,7 @@
                         $isSelfLastEditorBadge = !empty($_SESSION[FM_SESSION_ID]['logged']) && $_SESSION[FM_SESSION_ID]['logged'] === $lastEditorName;
                         $actionNote = $fmBuildActionNote($appOwnerMeta, $modif, true);
                         ?>
-                        <td class="fm-col-perms"><?php echo $perms ?></td>
+                        <td class="fm-col-perms"><span class="fm-file-detail"><?php echo $perms ?></span></td>
                         <td class="fm-col-owner" data-owner-source="<?php echo $ownerSource === 'app' ? 'app' : 'system'; ?>">
                             <div class="fm-owner-stack">
                                 <button
@@ -460,10 +460,10 @@
                             <?php echo ($is_link ? ' &rarr; <i>' . readlink($path . '/' . $f) . '</i>' : '') ?>
                         </div>
                     </td>
-                    <td class="fm-col-size" data-order="b-<?php echo str_pad($filesize_raw, 18, "0", STR_PAD_LEFT); ?>"><span title="<?php printf('%s bytes', $filesize_raw) ?>">
+                    <td class="fm-col-size" data-order="b-<?php echo str_pad($filesize_raw, 18, "0", STR_PAD_LEFT); ?>"><span class="fm-file-detail"><span title="<?php printf('%s bytes', $filesize_raw) ?>">
                             <?php echo $filesize; ?>
-                        </span></td>
-                    <td class="fm-col-modified" data-order="b-<?php echo $date_sorting; ?>"><?php echo $modif ?></td>
+                        </span></span></td>
+                    <td class="fm-col-modified" data-order="b-<?php echo $date_sorting; ?>"><span class="fm-file-detail"><?php echo $modif ?></span></td>
                     <?php if (!FM_IS_WIN && !$hide_Cols): ?>
                         <?php
                         $ownerName = isset($owner['name']) ? (string) $owner['name'] : '?';
@@ -521,8 +521,8 @@
                         $isSelfLastEditorBadge = !empty($_SESSION[FM_SESSION_ID]['logged']) && $_SESSION[FM_SESSION_ID]['logged'] === $lastEditorName;
                         $actionNote = $fmBuildActionNote($appOwnerMeta, $modif, false);
                         ?>
-                        <td class="fm-col-perms"><?php if (!FM_READONLY): ?><a title="<?php echo 'Change Permissions' ?>" href="?p=<?php echo urlencode(FM_PATH) ?>&amp;chmod=<?php echo urlencode($f) ?>"><?php echo $perms ?></a><?php else: ?><?php echo $perms ?><?php endif; ?>
-                        </td>
+                        <td class="fm-col-perms"><span class="fm-file-detail"><?php if (!FM_READONLY): ?><a title="<?php echo 'Change Permissions' ?>" href="?p=<?php echo urlencode(FM_PATH) ?>&amp;chmod=<?php echo urlencode($f) ?>"><?php echo $perms ?></a><?php else: ?><?php echo $perms ?><?php endif; ?>
+                        </span></td>
                         <td class="fm-col-owner" data-owner-source="<?php echo $ownerSource === 'app' ? 'app' : 'system'; ?>">
                             <div class="fm-owner-stack">
                                 <button
