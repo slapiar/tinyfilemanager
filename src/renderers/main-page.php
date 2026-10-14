@@ -2096,6 +2096,7 @@
             if (isNarrowViewport()) {
                 floatingPanelEl.style.top = 'auto';
                 floatingPanelEl.style.bottom = '12px';
+                floatingPanelEl.style.left = 'auto';
                 floatingPanelEl.style.right = '10px';
                 return;
             }
@@ -2114,7 +2115,13 @@
 
             floatingPanelEl.style.top = Math.round(top) + 'px';
             floatingPanelEl.style.bottom = 'auto';
-            floatingPanelEl.style.right = '12px';
+            // Attach to the visible table edge, including horizontally scrolled listings.
+            var tableRight = tableEl.getBoundingClientRect().right;
+            if (tableWrapEl) {
+                tableRight = Math.min(tableRight, tableWrapEl.getBoundingClientRect().right);
+            }
+            floatingPanelEl.style.left = Math.round(window.scrollX + tableRight) + 'px';
+            floatingPanelEl.style.right = 'auto';
         }
 
         function showFloatingActionsForRow(row) {
@@ -2186,7 +2193,18 @@
                 if (floatingPanelEl && !floatingPanelEl.classList.contains('hidden') && activeFloatingRow) {
                     positionFloatingPanel(activeFloatingRow);
                 }
-            }, { passive: true });
+            }, { passive: true, capture: true });
+
+            if (window.ResizeObserver && tableWrapEl) {
+                var floatingPanelResizeObserver = new ResizeObserver(function () {
+                    if (floatingPanelEl && !floatingPanelEl.classList.contains('hidden') && activeFloatingRow) {
+                        positionFloatingPanel(activeFloatingRow);
+                    }
+                });
+                floatingPanelResizeObserver.observe(tableWrapEl);
+                floatingPanelResizeObserver.observe(tableEl);
+            }
+
 
             window.addEventListener('resize', function () {
                 if (floatingPanelEl && !floatingPanelEl.classList.contains('hidden') && activeFloatingRow) {
