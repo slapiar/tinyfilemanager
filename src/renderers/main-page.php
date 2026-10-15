@@ -288,10 +288,10 @@
                             <?php echo ($is_link ? ' &rarr; <i>' . readlink($path . '/' . $f) . '</i>' : '') ?>
                         </div>
                     </td>
-                    <td class="fm-col-size" data-order="a-<?php echo str_pad($filesize_raw, 18, "0", STR_PAD_LEFT); ?>">
+                    <td class="fm-col-size" data-order="a-<?php echo str_pad($filesize_raw, 18, "0", STR_PAD_LEFT); ?>"><span class="fm-file-detail">
                         <?php echo $filesize; ?>
-                    </td>
-                    <td class="fm-col-modified" data-order="a-<?php echo $date_sorting; ?>"><?php echo $modif ?></td>
+                    </span></td>
+                    <td class="fm-col-modified" data-order="a-<?php echo $date_sorting; ?>"><span class="fm-file-detail"><?php echo $modif ?></span></td>
                     <?php if (!FM_IS_WIN && !$hide_Cols) { ?>
                         <?php
                         $ownerName = isset($owner['name']) ? (string) $owner['name'] : '?';
@@ -349,7 +349,7 @@
                         $isSelfLastEditorBadge = !empty($_SESSION[FM_SESSION_ID]['logged']) && $_SESSION[FM_SESSION_ID]['logged'] === $lastEditorName;
                         $actionNote = $fmBuildActionNote($appOwnerMeta, $modif, true);
                         ?>
-                        <td class="fm-col-perms"><?php echo $perms ?></td>
+                        <td class="fm-col-perms"><span class="fm-file-detail"><?php echo $perms ?></span></td>
                         <td class="fm-col-owner" data-owner-source="<?php echo $ownerSource === 'app' ? 'app' : 'system'; ?>">
                             <div class="fm-owner-stack">
                                 <button
@@ -384,9 +384,7 @@
                         </div>
                         <div class="inline-actions">
                             <?php if (!FM_READONLY && !FM_UPLOAD_ONLY && FM_CAN_WRITE_IN_PATH): ?>
-                                <?php if (!FM_MANAGER): ?>
                                 <a title="<?php echo lng('Delete') ?>" href="?p=<?php echo urlencode(FM_PATH) ?>&amp;del=<?php echo urlencode($f) ?>" onclick="confirmDailog(event, '1028','<?php echo lng('Delete') . ' ' . lng('Folder'); ?>','<?php echo urlencode($f) ?>', this.href);"> <i class="fa fa-trash-o" aria-hidden="true"></i></a>
-                                <?php endif; ?>
                                 <a title="<?php echo lng('Rename') ?>" href="#" onclick="rename('<?php echo fm_enc(addslashes(FM_PATH)) ?>', '<?php echo fm_enc(addslashes($f)) ?>');return false;"><i class="fa fa-pencil-square-o" aria-hidden="true"></i></a>
                                 <a title="<?php echo lng('CopyTo') ?>..." href="?p=<?php echo urlencode(FM_PATH) ?>&amp;copy=<?php echo urlencode(trim(FM_PATH . '/' . $f, '/')) ?>"><i class="fa fa-files-o" aria-hidden="true"></i></a>
                             <?php endif; ?>
@@ -462,10 +460,10 @@
                             <?php echo ($is_link ? ' &rarr; <i>' . readlink($path . '/' . $f) . '</i>' : '') ?>
                         </div>
                     </td>
-                    <td class="fm-col-size" data-order="b-<?php echo str_pad($filesize_raw, 18, "0", STR_PAD_LEFT); ?>"><span title="<?php printf('%s bytes', $filesize_raw) ?>">
+                    <td class="fm-col-size" data-order="b-<?php echo str_pad($filesize_raw, 18, "0", STR_PAD_LEFT); ?>"><span class="fm-file-detail"><span title="<?php printf('%s bytes', $filesize_raw) ?>">
                             <?php echo $filesize; ?>
-                        </span></td>
-                    <td class="fm-col-modified" data-order="b-<?php echo $date_sorting; ?>"><?php echo $modif ?></td>
+                        </span></span></td>
+                    <td class="fm-col-modified" data-order="b-<?php echo $date_sorting; ?>"><span class="fm-file-detail"><?php echo $modif ?></span></td>
                     <?php if (!FM_IS_WIN && !$hide_Cols): ?>
                         <?php
                         $ownerName = isset($owner['name']) ? (string) $owner['name'] : '?';
@@ -523,8 +521,8 @@
                         $isSelfLastEditorBadge = !empty($_SESSION[FM_SESSION_ID]['logged']) && $_SESSION[FM_SESSION_ID]['logged'] === $lastEditorName;
                         $actionNote = $fmBuildActionNote($appOwnerMeta, $modif, false);
                         ?>
-                        <td class="fm-col-perms"><?php if (!FM_READONLY): ?><a title="<?php echo 'Change Permissions' ?>" href="?p=<?php echo urlencode(FM_PATH) ?>&amp;chmod=<?php echo urlencode($f) ?>"><?php echo $perms ?></a><?php else: ?><?php echo $perms ?><?php endif; ?>
-                        </td>
+                        <td class="fm-col-perms"><span class="fm-file-detail"><?php if (!FM_READONLY): ?><a title="<?php echo 'Change Permissions' ?>" href="?p=<?php echo urlencode(FM_PATH) ?>&amp;chmod=<?php echo urlencode($f) ?>"><?php echo $perms ?></a><?php else: ?><?php echo $perms ?><?php endif; ?>
+                        </span></td>
                         <td class="fm-col-owner" data-owner-source="<?php echo $ownerSource === 'app' ? 'app' : 'system'; ?>">
                             <div class="fm-owner-stack">
                                 <button
@@ -559,9 +557,7 @@
                         </div>
                         <div class="inline-actions">
                             <?php if (!FM_READONLY && !FM_UPLOAD_ONLY && FM_CAN_WRITE_IN_PATH): ?>
-                                <?php if (!FM_MANAGER): ?>
                                 <a title="<?php echo lng('Delete') ?>" href="?p=<?php echo urlencode(FM_PATH) ?>&amp;del=<?php echo urlencode($f) ?>" onclick="confirmDailog(event, 1209, '<?php echo lng('Delete') . ' ' . lng('File'); ?>','<?php echo urlencode($f); ?>', this.href);"> <i class="fa fa-trash-o"></i></a>
-                                <?php endif; ?>
                                 <a title="<?php echo lng('Rename') ?>" href="#" onclick="rename('<?php echo fm_enc(addslashes(FM_PATH)) ?>', '<?php echo fm_enc(addslashes($f)) ?>');return false;"><i class="fa fa-pencil-square-o"></i></a>
                                 <a title="<?php echo lng('CopyTo') ?>..."
                                     href="?p=<?php echo urlencode(FM_PATH) ?>&amp;copy=<?php echo urlencode(trim(FM_PATH . '/' . $f, '/')) ?>"><i class="fa fa-files-o"></i></a>
@@ -616,7 +612,7 @@
         $footerLoggedUser = (FM_USE_AUTH && !empty($_SESSION[FM_SESSION_ID]['logged'])) ? $_SESSION[FM_SESSION_ID]['logged'] : '';
         $fm_bulk_toolbar_visible = defined('FM_BULK_ACTIONS_ENABLED') ? (bool) FM_BULK_ACTIONS_ENABLED : (!FM_READONLY && !FM_UPLOAD_ONLY && FM_CAN_WRITE_IN_PATH);
         $fm_bulk_can_modify = !FM_READONLY && !FM_UPLOAD_ONLY && FM_CAN_WRITE_IN_PATH;
-        $fm_bulk_can_delete = $fm_bulk_can_modify && !FM_MANAGER;
+        $fm_bulk_can_delete = $fm_bulk_can_modify;
         // Chat availability is role-agnostic: every logged-in user can communicate.
         $footerShowUserBadges = !empty($footerLoggedUser);
         $footerChatPeers = $footerShowUserBadges
@@ -651,7 +647,14 @@
                     <strong>Hromadné akcie</strong>
                     <button type="button" class="btn-close btn-close-sm" data-fm-bulk-close aria-label="Close"></button>
                 </div>
-                <div class="fm-bulk-toolbar-wrapper d-none d-md-block">
+                <div class="fm-mobile-bulk-menu">
+                    <label for="fm-mobile-bulk-action" class="visually-hidden">Vyberte hromadnú akciu</label>
+                    <select id="fm-mobile-bulk-action" class="form-select">
+                        <option value="">Vyberte akciu…</option>
+                    </select>
+                    <button type="button" id="fm-mobile-bulk-run" class="btn btn-primary" disabled>Vykonať</button>
+                </div>
+                <div class="fm-bulk-toolbar-wrapper">
                     <small class="text-muted fm-bulk-toolbar-label">Lišta hromadných akcií</small>
                     <div id="fm-selection-bar" class="btn-group flex-wrap" data-toggle="buttons" role="toolbar">
                     <span id="fm-selection-count" class="btn btn-small btn-outline-secondary btn-2 pe-none" style="display:none;">0</span>
@@ -701,7 +704,7 @@
                                 <select class="form-select form-select-sm" data-chat-peer-select aria-label="Vyber používateľa pre správu">
                                     <option value="">Komu odkaz?</option>
                                     <?php foreach ($footerChatPeers as $chatPeer): ?>
-                                        <option value="<?php echo fm_enc($chatPeer); ?>"><?php echo fm_enc($chatPeer); ?></option>
+                                        <option value="<?php echo fm_enc($chatPeer); ?>"><?php echo fm_enc($chatPeer); ?><?php echo in_array($chatPeer, isset($manager_users) && is_array($manager_users) ? $manager_users : array(), true) ? ' (manažér)' : ''; ?></option>
                                     <?php endforeach; ?>
                                 </select>
                                 <button type="button" class="btn btn-outline-primary" data-chat-open-peer>Napísať</button>
@@ -752,7 +755,7 @@
                                 <select class="form-select form-select-sm" data-chat-peer-select aria-label="Vyber používateľa pre správu">
                                     <option value="">Komu odkaz?</option>
                                     <?php foreach ($footerChatPeers as $chatPeer): ?>
-                                        <option value="<?php echo fm_enc($chatPeer); ?>"><?php echo fm_enc($chatPeer); ?></option>
+                                        <option value="<?php echo fm_enc($chatPeer); ?>"><?php echo fm_enc($chatPeer); ?><?php echo in_array($chatPeer, isset($manager_users) && is_array($manager_users) ? $manager_users : array(), true) ? ' (manažér)' : ''; ?></option>
                                     <?php endforeach; ?>
                                 </select>
                                 <button type="button" class="btn btn-outline-primary" data-chat-open-peer>Napísať</button>
@@ -1187,6 +1190,7 @@
         width: 100%;
     }
 
+    .fm-mobile-bulk-menu,
     .fm-mobile-bulk-launcher,
     .fm-mobile-bulk-backdrop,
     .fm-mobile-bulk-header {
@@ -1274,6 +1278,26 @@
             transform: translateY(0);
             opacity: 1;
             pointer-events: auto;
+        }
+
+        .fm-bulk-toolbar-wrapper {
+            display: none;
+        }
+
+        .fm-mobile-bulk-menu {
+            display: flex;
+            gap: .5rem;
+            align-items: center;
+        }
+
+        .fm-mobile-bulk-menu .form-select {
+            flex: 1;
+            min-width: 0;
+            min-height: 44px;
+        }
+
+        .fm-mobile-bulk-menu .btn {
+            min-height: 44px;
         }
 
         .fm-mobile-bulk-header {
@@ -1437,6 +1461,39 @@
         function getSelectedItemsCount() {
             var checked = tableEl.querySelectorAll('input[name="file[]"]:checked');
             return checked ? checked.length : 0;
+        }
+
+        function initMobileBulkMenu() {
+            var select = document.getElementById('fm-mobile-bulk-action');
+            var run = document.getElementById('fm-mobile-bulk-run');
+            if (!select || !run) return;
+            // Use the rendered desktop commands as the single source of role permissions.
+            var commands = Array.from(document.querySelectorAll('#fm-selection-bar a'));
+            commands.forEach(function (command, index) {
+                var option = document.createElement('option');
+                option.value = String(index);
+                option.textContent = command.textContent.replace(/\s+/g, ' ').trim();
+                select.appendChild(option);
+            });
+            select.addEventListener('change', function () {
+                run.disabled = select.value === '';
+            });
+            run.addEventListener('click', function () {
+                if (select.value === '') return;
+                var command = commands[Number(select.value)];
+                if (!command) return;
+                var selectionCommand = (command.getAttribute('href') || '').indexOf('#/') === 0;
+                if (!selectionCommand && !tableEl.querySelector('input[name="file[]"]:checked')) {
+                    window.alert('Najprv označte aspoň jeden súbor alebo priečinok.');
+                    return;
+                }
+                // Preserve existing confirmation dialogs, submit buttons and copy/move flags.
+                command.click();
+                updateSelectionBarState();
+                select.value = '';
+                run.disabled = true;
+                closeMobileBulkPanel();
+            });
         }
 
         function closeMobileBulkPanel() {
@@ -2100,6 +2157,7 @@
             if (isNarrowViewport()) {
                 floatingPanelEl.style.top = 'auto';
                 floatingPanelEl.style.bottom = '12px';
+                floatingPanelEl.style.left = 'auto';
                 floatingPanelEl.style.right = '10px';
                 return;
             }
@@ -2118,7 +2176,13 @@
 
             floatingPanelEl.style.top = Math.round(top) + 'px';
             floatingPanelEl.style.bottom = 'auto';
-            floatingPanelEl.style.right = '12px';
+            // Attach to the visible table edge, including horizontally scrolled listings.
+            var tableRight = tableEl.getBoundingClientRect().right;
+            if (tableWrapEl) {
+                tableRight = Math.min(tableRight, tableWrapEl.getBoundingClientRect().right);
+            }
+            floatingPanelEl.style.left = Math.round(window.scrollX + tableRight) + 'px';
+            floatingPanelEl.style.right = 'auto';
         }
 
         function showFloatingActionsForRow(row) {
@@ -2190,7 +2254,18 @@
                 if (floatingPanelEl && !floatingPanelEl.classList.contains('hidden') && activeFloatingRow) {
                     positionFloatingPanel(activeFloatingRow);
                 }
-            }, { passive: true });
+            }, { passive: true, capture: true });
+
+            if (window.ResizeObserver && tableWrapEl) {
+                var floatingPanelResizeObserver = new ResizeObserver(function () {
+                    if (floatingPanelEl && !floatingPanelEl.classList.contains('hidden') && activeFloatingRow) {
+                        positionFloatingPanel(activeFloatingRow);
+                    }
+                });
+                floatingPanelResizeObserver.observe(tableWrapEl);
+                floatingPanelResizeObserver.observe(tableEl);
+            }
+
 
             window.addEventListener('resize', function () {
                 if (floatingPanelEl && !floatingPanelEl.classList.contains('hidden') && activeFloatingRow) {
@@ -2334,6 +2409,8 @@
         setupSidebarResizer();
         bindFloatingRowActions();
         bindContextMenu();
+
+        initMobileBulkMenu();
 
         if (bulkOpenButtonEl) {
             bulkOpenButtonEl.addEventListener('click', function () {

@@ -1,55 +1,33 @@
-# App vlastnictvo suborov a chat inbox poznamky
+# Vlastníctvo súborov a chat
 
-Datum: 2026-06-09
+Aktualizované 29. 9. 2026 pre vydanie 3.3.11. Používateľské vysvetlenie aj prevádzkové poznámky pre správcu.
 
-## 1) Co znamena vlastnik suboru v aplikacii
+## Dve vrstvy vlastníctva
 
-Aplikacia teraz rozlisuje 2 vrstvy vlastnictva:
+Systémový vlastník je účet operačného systému alebo hostingu, pod ktorým súbor existuje. Aplikačný vlastník je používateľ TinyFileManagera evidovaný pri vzniku položky. Tieto údaje nie sú totožné a samy osebe nenahrádzajú kontrolu oprávnení.
 
-- Systemovy owner: OS/POSIX owner (`fileowner`, `posix_getpwuid`), napr. `www-data`, `root`, alebo hostingovy identifikator.
-- App owner metadata: interny uzivatel TinyFileManager (`auth_users`), ktory subor vytvoril alebo naposledy upravil.
+Ak je evidovaný aplikačný tvorca, zobrazuje sa jeho odznak. Inak sa položka označuje ako systémová. Pri úprave pôvodne systémového súboru môže zostať vlastník **System** a pribudnúť odznak posledného editora. Tooltip dopĺňa podrobnosti. Filtre **Všetko / App / System** a počítadlá slúžia na orientáciu v pôvode položiek.
 
-## 2) Ako sa metadata ukladaju
+## Ukladanie metadát
 
-- Ukladanie: `.fm_usercfg/owner-meta.json`
-- Scope: metadata su oddelene podla `FM_ROOT_PATH` (hash scope key), aby sa nemiesali medzi roznymi root priecinkami.
-- Zaznam na subor/priecinok obsahuje:
-  - `created_by`, `created_at`
-  - `updated_by`, `updated_at`
-  - `last_action`
+Aktuálny backend používa `owner-meta.sqlite` v adresári prevádzkového stavu z funkcie `fm_runtime_state_dir()`. Cestu ovplyvňuje `$state_storage_path`; bez vlastnej cesty sa používa `.fm_usercfg`. Starší `owner-meta.json` slúži aj ako migračný zdroj. Nie je správne predpokladať, že všetky nové záznamy sa zapisujú iba do JSON.
 
-## 3) Kedy sa metadata aktualizuju
+Záznamy sú oddelené podľa koreňa pracovného priestoru. Obsahujú `created_by`, `created_at`, `updated_by`, `updated_at` a `last_action`. Bežné uploady, vytvorenie, editácia, kopírovanie, presun, premenovanie a mazanie majú obsluhu metadát v aplikácii. Zásah priamo na hostingu nemá automaticky identitu aplikačného používateľa; indexovanie ju nedokáže spätne určiť. Vývojový AI Browser nemožno považovať za rovnocenný auditovaný editor.
 
-- upload suboru (standard/chunk/url)
-- vytvorenie suboru/priecinka
-- editacia obsahu suboru
-- copy/move/rename
-- delete (mazanie metadat)
+## Komu možno písať
 
-## 4) Zobrazenie v stlpci Vlastnik
+Chat pracuje s internými účtami a zoznam príjemcov filtruje podľa pravidiel aplikácie. Priamo priradený manažér sa pridáva aj pri odlišných adresároch a je označený **(manažér)**. Systémový vlastník bez zodpovedajúceho aplikačného účtu nie je príjemcom chatu. Odznak vlastného účtu alebo nedostupného príjemcu nemusí byť klikateľný.
 
-- Preferovane je app owner (`created_by`) ak existuje metadata.
-- Tooltip badge obsahuje doplnkove info:
-  - `App owner: <user>`
-  - `Last update: <user>` ked sa lisi od ownera
-- Ak app metadata neexistuju, zobrazi sa fallback na systemoveho ownera.
-- Nove pravidlo: pre povodne systemove polozky sa po editacii zachova owner `System`, ale zobrazi sa druhy badge posledneho editora (`updated_by`).
-- Badge posledneho editora je klikatelny pre chat, ak ide o interneho app usera.
-- Toolbar obsahuje filter `Vlastnik` s volbami `Vsetko / App / System`.
-  - `App`: zobrazi len polozky s app metadata (`created_by`).
-  - `System`: zobrazi len fallback system owner polozky.
-- Vedla filtra su badge pocty `App: N` a `System: N` pre rychly audit rozlozenia vlastnictva.
-- Badge `App` a `System` su klikatelne skratky filtra (aj klavesovo cez Enter/Space).
+## História a neprečítané správy
 
-## 5) Chat a offline spravy
+Správy sú v `chat.sqlite` v tom istom prevádzkovom adresári. Prežijú odhlásenie. Server eviduje stav čítania v tabuľke `fm_chat_read_state`; rozhranie používa aj lokálny stav `tfm-chat-read:<user>` v `localStorage`. Preto opis „stav čítania je iba v prehliadači“ už nie je úplný.
 
-- Spravy sa ukladaju do SQLite (`.fm_usercfg/chat.sqlite`) a preziju odhlasenie.
-- Pridany je inbox unread badge (`Neprecitane`) s pocitadlom odosielatelov s neprecitanymi spravami.
-- Read-state sa drzi per user v `localStorage` (`tfm-chat-read:<user>`).
-- Po otvoreni konverzacie sa sender oznaci ako precitany.
+Zobrazenie online je orientačné. Správa môže byť odoslaná aj offline príjemcovi. Indikácia neprečítaných správ upozorňuje na konverzácie, ktoré treba otvoriť.
 
-## 6) Obmedzenia
+## Premenovanie účtu a aktualizácia aplikácie
 
-- Chat endpoint akceptuje iba internych `auth_users`.
-- Systemovy owner, ktory nie je interny app user, nemoze byt chat peer.
-- V takom pripade je owner badge vizualne rovnaky, ale bez aktivneho chat prepojenia.
+Správa používateľov podporuje premenovanie účtu a prenáša súvisiace nastavenia a odkazy vrátane chatovej histórie. Úprava mena ručne iba na jednom mieste nie je ekvivalent tohto postupu.
+
+Pri nasadení zachovajte prevádzkový adresár, serverový `config.php` a integračné konfigurácie. Databázu chatu ani vlastníctva nemažte ako „cache“. Index `search-index.sqlite` má iný účel: je odvodený od disku; chat a metadáta obsahujú informácie, ktoré samotný disk neobnoví.
+
+[Používateľská príručka](?help_doc=user-guide) · [Konfigurácia](?help_doc=wiki-config-flags)

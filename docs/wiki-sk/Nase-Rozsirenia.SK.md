@@ -1,95 +1,38 @@
-# Naše rozšírenia TinyFileManager
+# Naše rozšírenia a ich stav
 
-Táto kapitola je vyhradená pre funkcionalitu, ktorá bola doplnená nad rámec pôvodného projektu.
-Preklady pôvodnej wiki zostávajú bez zásahu, rozšírenia sú dokumentované samostatne.
+Stav vydania 3.3.11, 29. 9. 2026.
 
-## Ako čítať túto kapitolu
+## Dostupné funkcie
 
-- Každá sekcia obsahuje stručný účel, stav a odkazy na súvisiace časti projektu.
-- Ak je sekcia v stave návrhu, je označená ako plán alebo TODO.
+- Roly, pridelené adresáre, správa a premenovanie účtov, minimálne dvojznakové meno.
+- Predvolené tmavé kompaktné zobrazenie s osobným nastavením a dočasným režimom Ultra.
+- Kamera a nahrávanie zo zariadenia v okne **+**, zachované samostatné nahrávanie v hlavičke.
+- Interný chat, história, neprečítané konverzácie a priamo priradený manažér vo výbere príjemcov.
+- Aplikačné vlastníctvo a posledný editor, filtre App/System.
+- Lokálna Pomoc a slovenská wiki.
+- Živé načítanie priečinkov, SQLite vyhľadávanie a obnova expirovaného indexu.
+- Hromadné mazanie s rozlíšením úspechu, chyby a už chýbajúcich položiek.
 
-## 1. Chat medzi online používateľmi
+## Index a zmeny mimo aplikácie
 
-Stav: implementované
+Priečinky sa načítavajú z disku. Rozdiel oproti indexu spustí jeho označenie na obnovu. Index vyhľadávania má platnosť 60 sekúnd od dokončenia obnovy; ďalšia požiadavka po expirácii ho znovu vytvorí pod zámkom. Obnova zvýši revíziu stromu, ktorú otvorené rozhranie pravidelne kontroluje. Nie je to samostatný proces sledujúci disk bez požiadaviek. Pri veľkom úložisku môže obnova zvýšiť čas odozvy.
 
-Rozsah:
+Výsledky hľadania overujú existenciu súborov. Úplné rekurzívne indexovanie nenasleduje symbolické odkazy na adresáre. Zachytávanie externých zmien neznamená automatické doplnenie autora do aplikačného vlastníctva.
 
-- komunikácia medzi používateľmi cez popup chat
-- história správ a inbox notifikácie
-- zvýraznenie neprečítaných správ
-- perzistencia správ v SQLite databáze
+## Diagnostické logovanie
 
-Súvisiace miesta v projekte:
+V nastaveniach profilu zostáva prepínač logovania fallbackov na ladenie. Pri úspešnom uložení sa odstraňuje stará záloha nastavení z relácie, ktorá mohla prepisovať uloženú hodnotu. Čistenie logu a reset prevádzkového stavu kontrolujú administrátorskú rolu aj po premenovaní admina. Logovanie samo chybu neopravuje a nie je zárukou záznamu každej chyby súborového systému.
 
-- backend logika v hlavnom runtime
-- UI prvky online používateľov a chat modal
+## AI Browser — rozpracované, iba administrátor
 
-## 2. Rozšírené Help a lokálna dokumentácia
+Od 3.3.6 je položka skrytá ostatným rolám a priamy vstup je blokovaný. Serverové nastavenie je v `api.config.php`. Spojenie používa API kľúč, model a základnú URL; diagnostika rozlišuje napríklad chybu overenia, kvótu a nedostupný model.
 
-Stav: implementované
+Funkcia zatiaľ vyžaduje vybrané súbory a vracia plán operácií, nie spoľahlivý konverzačný návod. Zobrazuje aj JSON. Operácia `write` znamená náhradu celého obsahu cieľového súboru hodnotou `content`. Zhrnutie opráv nie je opravený dokument. Kvalita a úplnosť AI návrhu nie sú automaticky zaručené a aktuálne rozhranie nemá plnohodnotné porovnanie zmien pred uložením.
 
-Rozsah:
+**Použiť zmeny** vykonáva návrh. Režim povolenia pre reláciu vypína jednotlivé potvrdenia, nie potrebu samostatne spustiť aplikovanie. Administrátor nemá interný limit počtu, prípon a skracovania textov; technické limity servera a poskytovateľa zostávajú. Binárne formáty nie sú týmto textovým postupom spracúvané ako dokumenty alebo obrázky.
 
-- lokálne Help dokumenty cez `help_doc`
-- markdown renderovanie dokumentácie v aplikácii
-- slovenská wiki navigácia v hlavičke + predošlá/nasledujúca kapitola v pätičke
-- zachovanie kontextu priečinka pri prehliadaní dokumentácie
+## API, vydania a overovanie
 
-## 3. Release automatizácia
+Samostatné tokenové API a bridge sú oddelené od používateľského AI Browsera. Ich nastavenia sú v príslušných lokálnych konfiguráciách; skrytie AI položky nemení existujúce tokeny API.
 
-Stav: implementované
-
-Rozsah:
-
-- rozšírené prepínače release skriptu (`patch`, `mini`, ...)
-- automatický commit release výstupu
-- automatický push po release
-
-## 4. API a integračné rozšírenia
-
-Stav: implementované / priebežne rozširované
-
-Rozsah:
-
-- API endpointy a integračné body pre externé služby
-- bridge vrstva pre interné workflow
-
-TODO:
-
-- doplniť prehľad endpointov a minimálne príklady request/response
-
-## 5. Hardening a produkčné nasadenie
-
-Stav: implementované / priebežne rozširované
-
-Rozsah:
-
-- bezpečnostné úpravy a pravidlá nasadenia
-- smernice pre stabilnú prevádzku
-
-TODO:
-
-- doplniť checklist „pred produkčným nasadením“
-
-## 6. Refaktor a testovanie
-
-Stav: implementované / priebežne rozširované
-
-Rozsah:
-
-- extrakcia helperov a služieb do `src/`
-- unit/integration testy pre kritické toky
-
-TODO:
-
-- doplniť mapu „modul -> testy -> coverage cieľ"
-
-## Poznámka k ďalšiemu dopĺňaniu
-
-Pri dopĺňaní nových sekcií odporúčame držať jednotný formát:
-
-- Účel
-- Stav
-- Rozsah
-- Súvisiace súbory
-- TODO / ďalší krok
+`release.sh` vytvára archív, vykonáva PHP lint a voliteľne commit/push. Nie je to automatické produkčné nasadenie. Regresie v `tests/regression/admin-permissions.py` a `settings-client.cjs` overujú vybrané toky; AI odpovede sa v HTTP testoch simulujú. Úspešný test preto nepotvrdzuje kvalitu odpovedí živého modelu ani funkčnosť každého hostingu.

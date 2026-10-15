@@ -6,7 +6,7 @@
  * It loads config.php first and api.config.php second.
  */
 
-header('Content-Type: application/json; charset=utf-8');
+if (!defined('TFM_API_FUNCTIONS_ONLY')) header('Content-Type: application/json; charset=utf-8');
 
 $api_start_time = microtime(true);
 
@@ -25,6 +25,7 @@ function api_json_response($ok, $data = array(), $status = 200)
 
 function api_error($message, $status = 400, $extra = array())
 {
+    if (defined('TFM_API_FUNCTIONS_ONLY') && TFM_API_FUNCTIONS_ONLY) throw new RuntimeException($message, $status);
     api_json_response(false, array_merge(array('error' => $message), $extra), $status);
 }
 
@@ -560,6 +561,8 @@ function api_assistant_apply_operations($assistant_scope_root, $operations, $req
 
     return $results;
 }
+
+if (defined('TFM_API_FUNCTIONS_ONLY') && TFM_API_FUNCTIONS_ONLY) return;
 
 $config_file = __DIR__ . '/config.php';
 if (is_file($config_file)) {

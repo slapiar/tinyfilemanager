@@ -18,6 +18,7 @@ class FM_Config
             'lang' => 'sk',
             'error_reporting' => true,
             'show_hidden' => true,
+            'theme' => 'dark',
             'list_density' => 'compact',
             'fallback_logging' => false
         );
@@ -46,6 +47,12 @@ class FM_Config
             $this->data = array_merge($this->data, $dbData);
         }
 
+        // New profiles and the login page use the application defaults, even
+        // when a legacy global configuration still says light/normal.
+        $this->data['theme'] = 'dark';
+        $this->data['list_density'] = 'compact';
+        unset($this->data['display_defaults_version']);
+
         // Override with per-user settings if a user is already logged in (session started early).
         $logged = isset($_SESSION[FM_SESSION_ID]['logged']) ? $_SESSION[FM_SESSION_ID]['logged'] : null;
         if ($logged) {
@@ -57,6 +64,21 @@ class FM_Config
             // Fallback source when profile settings cannot be persisted to disk.
             if (isset($_SESSION[FM_SESSION_ID]['user_settings']) && is_array($_SESSION[FM_SESSION_ID]['user_settings'])) {
                 $this->data = array_merge($this->data, $_SESSION[FM_SESSION_ID]['user_settings']);
+            }
+
+            // Apply the requested default to existing profiles once. Subsequent
+            // explicit choices in Settings remain personal preferences.
+            if (empty($this->data['display_defaults_version'])) {
+                $this->data['theme'] = 'dark';
+                $this->data['list_density'] = 'compact';
+                $this->data['display_defaults_version'] = 1;
+                if (!$this->save()) {
+                    $_SESSION[FM_SESSION_ID]['user_settings'] = $this->data;
+                } elseif (isset($_SESSION[FM_SESSION_ID]['user_settings'])) {
+                    $_SESSION[FM_SESSION_ID]['user_settings']['theme'] = 'dark';
+                    $_SESSION[FM_SESSION_ID]['user_settings']['list_density'] = 'compact';
+                    $_SESSION[FM_SESSION_ID]['user_settings']['display_defaults_version'] = 1;
+                }
             }
 
             if (!isset($this->data['lang']) || !is_string($this->data['lang']) || trim($this->data['lang']) === '') {
