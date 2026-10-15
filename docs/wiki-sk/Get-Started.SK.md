@@ -1,6 +1,6 @@
 # Začíname a nasadenie
 
-Aktualizované pre 3.3.11. Táto kapitola je určená správcovi webhostingu.
+Aktualizované pre 3.3.17. Táto kapitola je určená správcovi webhostingu.
 
 ## Požiadavky tohto forku
 
@@ -25,3 +25,13 @@ Nastavte vhodnú perzistentnú cestu `$state_storage_path`. Bez vlastného nasta
 ## Prevádzkové overenie
 
 Zmeny najprv overte na oddelenej kópii. Lokálne regresné testy nenahrádzajú kontrolu oprávnení a konfigurácie konkrétneho hostingu. AI Browser zostáva dostupný iba administrátorovi a nie je súčasťou bežného pracovného postupu klientov.
+
+## Bezpečné vytvorenie vydania
+
+Bežný `bash release.sh patch` vytvorí aktualizačný ZIP bez `config.php`, `api.config.php` a `joyee-bridge.config.php`, aj keď sú verzované. Rozbalenie takéhoto ZIP-u zachová existujúce serverové konfigurácie. Prevádzkové dáta sa do balíka naďalej nepridávajú.
+
+Skript najprv vykoná `git fetch origin` a odmietne vydanie, ak aktuálna vzdialená pracovná vetva alebo hlavná vetva master/main obsahuje nezačlenené zmeny. Pri nedostupnom GitHube skončí chybou. Najprv zosúlaďte vetvy, potom vytvorte vydanie.
+
+Iba ak bolo aktuálne porovnanie a začlenenie vzdialených zmien overené samostatne (napríklad cez GitHub konektor), možno použiť `--offline-reviewed`. Tento prepínač nenahrádza kontrolu aktuálnosti.
+
+Pre prvú inštaláciu pripravte konfiguráciu samostatne. Výslovný prepínač `--include-local-config` pridá všetky tri existujúce konfigurácie do balíka; taký balík je určený pre vedomý prenos konfigurácie a pri rozbalení ju môže prepísať. Nepoužívajte ho na bežné aktualizácie.

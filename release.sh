@@ -16,6 +16,7 @@ cd "$ROOT_DIR"
 VERSION_FILE="RELEASE_VERSION"
 DEFAULT_VERSION="1.1"
 INCLUDE_LOCAL_CONFIG=false
+OFFLINE_REVIEWED=false
 AUTO_COMMIT=false
 AUTO_PUSH=false
 COMMIT_MESSAGE=""
@@ -24,6 +25,9 @@ VERSION=""
 BUMP_MODE=""
 for arg in "$@"; do
   case "$arg" in
+    --offline-reviewed)
+      OFFLINE_REVIEWED=true
+      ;;
     --include-local-config)
       INCLUDE_LOCAL_CONFIG=true
       ;;
@@ -38,18 +42,19 @@ for arg in "$@"; do
       ;;
     patch|minor|major|mini)
       if [[ -n "$VERSION" || -n "$BUMP_MODE" ]]; then
-        echo "Usage: $0 [--include-local-config] [--auto-commit] [--auto-push] [--commit-message=...] [version|patch|minor|major|mini]" >&2
+        echo "Usage: $0 [--include-local-config] [--offline-reviewed] [--auto-commit] [--auto-push] [--commit-message=...] [version|patch|minor|major|mini]" >&2
         exit 1
       fi
       BUMP_MODE="$arg"
       ;;
     -h|--help)
       cat <<EOF
-Usage: $0 [--include-local-config] [--auto-commit] [--auto-push] [--commit-message=...] [version|patch|minor|major|mini]
+Usage: $0 [--include-local-config] [--offline-reviewed] [--auto-commit] [--auto-push] [--commit-message=...] [version|patch|minor|major|mini]
 
 Options:
   --include-local-config  Include local server config files (if present):
-                          api.config.php, joyee-bridge.config.php
+                          config.php, api.config.php, joyee-bridge.config.php
+  --offline-reviewed     Skip remote check only after separately comparing GitHub refs
   --auto-commit           Automatically commit RELEASE_VERSION and release ZIP
   --auto-push             Push current branch to origin after release
   --commit-message=MSG    Custom commit message for --auto-commit
@@ -64,7 +69,7 @@ EOF
       ;;
     *)
       if [[ -n "$VERSION" ]]; then
-        echo "Usage: $0 [--include-local-config] [--auto-commit] [--auto-push] [--commit-message=...] [version|patch|minor|major|mini]" >&2
+        echo "Usage: $0 [--include-local-config] [--offline-reviewed] [--auto-commit] [--auto-push] [--commit-message=...] [version|patch|minor|major|mini]" >&2
         exit 1
       fi
       VERSION="$arg"
@@ -140,6 +145,21 @@ if [[ -n "$DIRTY_STATUS" ]]; then
   exit 1
 fi
 
+# Refuse stale releases. Never silently build after a failed remote check.
+# Connector-based environments may explicitly attest to a separate remote review.
+if [[ "$OFFLINE_REVIEWED" != true ]]; then
+  git fetch origin || { echo "Error: cannot verify remote state. Release aborted." >&2; exit 1; }
+  CURRENT_BRANCH="$(git symbolic-ref --quiet --short HEAD)" || exit 1
+  for ref in "refs/remotes/origin/$CURRENT_BRANCH" refs/remotes/origin/master refs/remotes/origin/main; do
+    if git rev-parse --verify "$ref" >/dev/null 2>&1; then
+      git merge-base --is-ancestor "$ref" HEAD || {
+        echo "Error: $ref contains changes not integrated into HEAD. Synchronize before releasing." >&2
+        exit 1
+      }
+    fi
+  done
+fi
+
 # Persist requested/default version after validation.
 echo "$VERSION" > "$VERSION_FILE"
 
@@ -154,9 +174,9 @@ mkdir -p "$OUT_DIR"
 # Never include previously generated release archives.
 # Exclude development-only directories from production release bundles.
 # Runtime state under .fm_usercfg is server-local and should not ship in release zips.
-# Private deployment config files are intentionally included in private release builds when present.
+# Server configuration is opt-in, even when tracked by Git.
 git -C "$ROOT_DIR" ls-files \
-  | grep -Ev '^(releases/|\.github/|tests/|docs/archive/|\.fm_usercfg/|scripts/prehliadac\.sh$|DOCS_AUDIT\.md$|ROADMAP_DREMONT\.md$|SMOKE_TEST_2\.9\.19\.md$|\.gitignore$|\.gitattributes$)|\.(zip|tar|tgz|gz|rar|7z)$' \
+  | grep -Ev '^(config\.php$|api\.config\.php$|joyee-bridge\.config\.php$|releases/|\.github/|tests/|docs/archive/|\.fm_usercfg/|scripts/prehliadac\.sh$|DOCS_AUDIT\.md$|ROADMAP_DREMONT\.md$|SMOKE_TEST_2\.9\.19\.md$|\.gitignore$|\.gitattributes$)|\.(zip|tar|tgz|gz|rar|7z)$' \
   > "$TMP_LIST"
 
 # Keep hardening rules from dropping a tracked .htaccess template for .fm_usercfg.
@@ -164,11 +184,13 @@ if git -C "$ROOT_DIR" ls-files --error-unmatch .fm_usercfg/.htaccess >/dev/null 
   grep -qxF ".fm_usercfg/.htaccess" "$TMP_LIST" || echo ".fm_usercfg/.htaccess" >> "$TMP_LIST"
 fi
 
-for local_config in api.config.php joyee-bridge.config.php; do
+if [[ "$INCLUDE_LOCAL_CONFIG" == true ]]; then
+for local_config in config.php api.config.php joyee-bridge.config.php; do
   if [[ -f "$ROOT_DIR/$local_config" ]]; then
     grep -qxF "$local_config" "$TMP_LIST" || echo "$local_config" >> "$TMP_LIST"
   fi
 done
+fi
 
 if [[ ! -s "$TMP_LIST" ]]; then
   echo "Error: no tracked files found to package." >&2
